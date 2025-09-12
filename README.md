@@ -12,4 +12,4 @@ UVSim has a 100 word memory, CPU, and memory registers
 ## Modules
 
 ## Changelog 
-09/11/2025 - Initial creation, added README.md basic format
+09/11/2025 - Initial creation, added README.md basic format and blank main.py
