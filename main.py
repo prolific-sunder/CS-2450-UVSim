@@ -95,9 +95,6 @@ def main():
         for line in file:
             _programMemory.update({"{:02d}".format(memoryCounter) : line.strip()})
             memoryCounter += 1
-    
-    for x in _programMemory:
-        print(x, _programMemory[x])
 
     # Parsing through the instructions, and calling the Parse function
     programcounter = 0
