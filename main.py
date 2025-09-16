@@ -1,6 +1,11 @@
 # MAIN FILE
 import sys
 
+# Global Vars
+_accumulator = "+0000"
+_programCounter = 0
+_programMemory = {}
+
 def parse(word):
     # Takes a string instruction
     # Returns a tuple
@@ -62,16 +67,27 @@ def multiply(tuple):
 def branch(tuple):
     # Takes parsed tuple
     # Executes branch instruction
+    global _programCounter
+    _programCounter = int(tuple[1])
+
     return
 
 def branchneg(tuple):
     # Takes parsed tuple
     # Executes branchneg instruction
+    if (_accumulator[0] == '-'):
+        global _programCounter
+        _programCounter = int(tuple[1])
+
     return
 
 def branchzero(tuple):
     # Takes parsed tuple
     # Executes branchzero instruction
+    if (_accumulator == "+0000"):
+        global _programCounter
+        _programCounter = int(tuple[1])
+
     return
 
 def main():
@@ -89,19 +105,23 @@ def main():
     
     # Adding all instructions to the array
     global _programMemory
-    _programMemory = {}
     with open(txtfile, 'r') as file:
         memoryCounter = 0
         for line in file:
             _programMemory.update({"{:02d}".format(memoryCounter) : line.strip()})
             memoryCounter += 1
+    
+    # Populating all the remaining memory locations
+    while (memoryCounter < 100):
+        _programMemory.update({"{:02d}".format(memoryCounter) : "+0000"})
+        memoryCounter += 1
 
     # Parsing through the instructions, and calling the Parse function
-    programcounter = 0
     global _accumulator
-    while (programcounter < 100):
+    global _programCounter
+    while (_programCounter < 100):
         # Call the parser
-        tuple = parse(_programMemory["{:02d}".format(programcounter)])
+        tuple = parse(_programMemory["{:02d}".format(_programCounter)])
 
         # Call each instruct function
         if tuple[0] == '10':
@@ -127,10 +147,10 @@ def main():
         elif tuple[0] == '42':
             branchzero(tuple)
         elif tuple[0] == '43':
-            programcounter += 100
+            _programCounter += 100
 
         # Increment Program counter
-        programcounter += 1
+        _programCounter += 1
     
     print("Program halted with code 0")
 
