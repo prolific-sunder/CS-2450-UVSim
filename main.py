@@ -1,10 +1,23 @@
 # MAIN FILE
 import sys
 
-def parse(instruction):
+def parse(word):
     # Takes a string instruction
     # Returns a tuple
-    return
+    # Check if word is signed
+    newWord = '+'
+    if (word[0] != '+') and (word[0] != '-'):
+        newWord += word
+    else:
+        newWord = word
+
+    # Check if word is right size
+    if (len(word) != 5):
+        raise Exception("Word instruction not correct length")
+    
+    # Create the tuple
+    newTuple = (newWord[1:3], newWord[3:], newWord)
+    return newTuple
 
 def read(tuple):
     # Takes the parsed tuple
@@ -75,17 +88,23 @@ def main():
         return
     
     # Adding all instructions to the array
-    instructions = []
+    global _programMemory
+    _programMemory = {}
     with open(txtfile, 'r') as file:
+        memoryCounter = 0
         for line in file:
-            instructions.append(line)
+            _programMemory.update({"{:02d}".format(memoryCounter) : line.strip()})
+            memoryCounter += 1
     
+    for x in _programMemory:
+        print(x, _programMemory[x])
+
     # Parsing through the instructions, and calling the Parse function
     programcounter = 0
-    accumulator = ""
+    global _accumulator
     while (programcounter < 100):
         # Call the parser
-        tuple = parse(instructions[programcounter])
+        tuple = parse(_programMemory["{:02d}".format(programcounter)])
 
         # Call each instruct function
         if tuple[0] == '10':
