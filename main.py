@@ -29,19 +29,8 @@ def read(tuple):
     _, address, _ = tuple
     # Executes Read instruction
     word = input("Enter input: ")
-
-    newWord = '+'
-    if (word[0] != '+') and (word[0] != '-'):
-        newWord += word
-    else:
-        newWord = word
-
-    # Check if word is right size
-    if (len(newWord) != 5):
-        raise Exception("Word instruction not correct length")
-
     #Stores input to memory 
-    _programMemory[address] = newWord
+    _programMemory[address] = word
 
 def write(tuple):
     # Takes parsed tuple
