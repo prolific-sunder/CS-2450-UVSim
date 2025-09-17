@@ -25,14 +25,29 @@ def parse(word):
     return newTuple
 
 def read(tuple):
-    # Takes the parsed tuple
+    # Unpack tuple
+    _, address, _ = tuple
     # Executes Read instruction
-    return
+    word = input("Enter input: ")
+
+    newWord = '+'
+    if (word[0] != '+') and (word[0] != '-'):
+        newWord += word
+    else:
+        newWord = word
+
+    # Check if word is right size
+    if (len(newWord) != 5):
+        raise Exception("Word instruction not correct length")
+
+    #Stores input to memory 
+    _programMemory[address] = newWord
 
 def write(tuple):
     # Takes parsed tuple
+    _, address, _ = tuple
     # Executes write instruction
-    return
+    print(_programMemory[address])
 
 def load(tuple):
     # Takes parsed tuple
