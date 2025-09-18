@@ -41,11 +41,27 @@ def write(tuple):
 def load(tuple):
     # Takes parsed tuple
     # Executes load instruction
+    global _accumulator # Accessing global accumulator
+    global _programMemory # Accessing global program memory
+    try:
+        _programMemory[tuple[1]] # Checking if memory address exists
+    except KeyError:
+        print("Program halted with error code 1: Invalid memory address")
+        sys.exit(1)
+    _accumulator = _programMemory[tuple[1]] # Loading value from memory to accumulator
     return
 
 def store(tuple):
     # Takes parsed tuple
     # Executes store instruction
+    global _accumulator # Accessing global accumulator
+    global _programMemory # Accessing global program memory
+    try:
+        _programMemory[tuple[1]] # Checking if memory address exists
+    except KeyError:
+        print("Program halted with error code 1: Invalid memory address")
+        sys.exit(1) 
+    _programMemory[tuple[1]] = _accumulator # Storing value from accumulator to memory
     return
 
 def add(tuple):
