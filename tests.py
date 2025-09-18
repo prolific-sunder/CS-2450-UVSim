@@ -44,6 +44,45 @@ class TestLoadStore:
         assert e.type == SystemExit  # Asserting the exception type
         assert e.value.code == 1  # Asserting the exit code
 
+class TestReadWrite:
+    """Tests I/O operations for main.py"""
+    def setup_method(self):
+        main._programMemory = {f"{i:02d}": "+0000" for i in range(100)}
+
+    ## READ TESTS
+    def test_read_pass(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda _: 10)
+        main.read(("10", "00", "+1000"))
+        assert main._programMemory["00"] == 10
+
+    def test_read_fail(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda _: 200)
+        main.read(("10", "99", "+1099"))
+        assert main._programMemory["99"] != 10
+
+    def test_read_error(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda _: "I will fail")
+        with pytest.raises(ValueError):
+            main.read(("10", "99", "+1099"))
+
+    ### WRITE TESTS
+    def test_write_pass(self, capsys):
+        main._programMemory["33"] = 15
+        main.write(("11", "33", "+1033"))
+
+        captured = capsys.readouterr()
+        output_value = int(captured.out.strip())
+        assert output_value == 15
+
+    def test_write_fail(self, capsys):
+        main._programMemory["66"] = 0
+        main.write(("11", "66", "+1066"))
+        main._programMemory["66"] = 1
+
+        captured = capsys.readouterr()
+        output_value = int(captured.out.strip())
+        assert output_value != 1
+
 if __name__ == "__main__":
     # Run the tests
     pytest.main([__file__, "-v"]) # Verbose output
