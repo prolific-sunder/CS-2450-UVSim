@@ -29,8 +29,12 @@ def read(tuple):
     _, address, _ = tuple
     # Executes Read instruction
     word = input("Enter input: ")
-    #Stores input to memory 
-    _programMemory[address] = word
+    
+    if isinstance(word, int):
+        #Stores input to memory 
+        _programMemory[address] = word
+    else:
+        raise ValueError("Program only accepts signed/unsigned integer values")
 
 def write(tuple):
     # Takes parsed tuple
