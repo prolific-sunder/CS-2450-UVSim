@@ -29,12 +29,8 @@ def read(tuple):
     _, address, _ = tuple
     # Executes Read instruction
     word = input("Enter input: ")
-    
-    if isinstance(word, int):
-        #Stores input to memory 
-        _programMemory[address] = word
-    else:
-        raise ValueError("Program only accepts signed/unsigned integer values")
+    #Stores input to memory 
+    _programMemory[address] = word
 
 def write(tuple):
     # Takes parsed tuple
@@ -126,7 +122,7 @@ def branch(tuple):
     # Takes parsed tuple
     # Executes branch instruction
     global _programCounter
-    _programCounter = int(tuple[1])
+    _programCounter = int(tuple[1]) - 1
 
     return
 
@@ -134,8 +130,9 @@ def branchneg(tuple):
     # Takes parsed tuple
     # Executes branchneg instruction
     if (_accumulator[0] == '-'):
+        print("Accumulator is negative")
         global _programCounter
-        _programCounter = int(tuple[1])
+        _programCounter = int(tuple[1]) - 1
 
     return
 
@@ -144,7 +141,7 @@ def branchzero(tuple):
     # Executes branchzero instruction
     if (_accumulator == "+0000"):
         global _programCounter
-        _programCounter = int(tuple[1])
+        _programCounter = int(tuple[1]) - 1
 
     return
 
