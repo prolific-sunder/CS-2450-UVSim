@@ -83,6 +83,91 @@ class TestReadWrite:
         output_value = int(captured.out.strip())
         assert output_value != 1
 
+class TestArithmetic:
+    def setup_method(self):
+        """Reset globals before each test"""
+        main._accumulator = "+0000"
+        main._programMemory = {f"{i:02d}": "+0000" for i in range(100)}
+        main._programCounter = 0
+
+    # ADD TESTS 
+    def test_add_positive(self):
+        main._accumulator = "+0007"
+        main._programMemory["09"] = "+0005"
+        main.add(("30", "09", "+3009"))
+        assert main._accumulator == "+0012"
+
+    def test_add_negative(self):
+        main._accumulator = "-0007"
+        main._programMemory["09"] = "+0005"
+        main.add(("30", "09", "+3009"))
+        assert main._accumulator == "-0002"
+
+    def test_add_zero(self):
+        main._accumulator = "+0000"
+        main._programMemory["01"] = "+0000"
+        main.add(("30", "01", "+3001"))
+        assert main._accumulator == "+0000"
+
+    # SUBTRACT TESTS 
+    def test_subtract_positive(self):
+        main._accumulator = "+0010"
+        main._programMemory["02"] = "+0003"
+        main.subtract(("31", "02", "+3102"))
+        assert main._accumulator == "+0007"
+
+    def test_subtract_negative_result(self):
+        main._accumulator = "+0003"
+        main._programMemory["02"] = "+0010"
+        main.subtract(("31", "02", "+3102"))
+        assert main._accumulator == "-0007"
+
+    def test_subtract_with_negative_operand(self):
+        main._accumulator = "+0005"
+        main._programMemory["02"] = "-0003"
+        main.subtract(("31", "02", "+3102"))
+        assert main._accumulator == "+0008"
+
+    # MULTIPLY TESTS 
+    def test_multiply_positive(self):
+        main._accumulator = "+0004"
+        main._programMemory["03"] = "+0003"
+        main.multiply(("33", "03", "+3303"))
+        assert main._accumulator == "+0012"
+
+    def test_multiply_negative(self):
+        main._accumulator = "-0004"
+        main._programMemory["03"] = "+0003"
+        main.multiply(("33", "03", "+3303"))
+        assert main._accumulator == "-0012"
+
+    def test_multiply_by_zero(self):
+        main._accumulator = "+0009"
+        main._programMemory["03"] = "+0000"
+        main.multiply(("33", "03", "+3303"))
+        assert main._accumulator == "+0000"
+
+    # DIVIDE TESTS
+    def test_divide_positive(self):
+        main._accumulator = "+0012"
+        main._programMemory["04"] = "+0003"
+        main.divide(("32", "04", "+3204"))
+        assert main._accumulator == "+0004"
+
+    def test_divide_negative(self):
+        main._accumulator = "-0012"
+        main._programMemory["04"] = "+0003"
+        main.divide(("32", "04", "+3204"))
+        assert main._accumulator == "-0004"
+
+    def test_divide_by_zero(self):
+        main._accumulator = "+0010"
+        main._programMemory["04"] = "+0000"
+        with pytest.raises(Exception) as e:
+            main.divide(("32", "04", "+3204"))
+        assert "Division by zero" in str(e.value)
+
+
 if __name__ == "__main__":
     # Run the tests
     pytest.main([__file__, "-v"]) # Verbose output
