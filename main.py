@@ -128,7 +128,7 @@ def divide(tuple):
     acc_val = int(_accumulator)
     mem_val = int(_programMemory[address])
 
-    if mem_val == 0:
+    if mem_val == 0: #Prevents a division by 0 error
         raise Exception("Division by zero error")
 
     result = acc_val // mem_val
