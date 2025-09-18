@@ -49,23 +49,57 @@ def store(tuple):
     return
 
 def add(tuple):
-    # Takes parsed tuple
-    # Executes add instruction
+    global _accumulator
+    _, address, _ = tuple
+
+    acc_val = int(_accumulator)
+    mem_val = int(_programMemory[address])
+
+    result = acc_val + mem_val
+
+    _accumulator = f"{result:+05d}"
     return
+
 
 def subtract(tuple):
-    # Takes parsed tuple
-    # Executes subtract instruction
+    global _accumulator
+    _, address, _ = tuple
+
+    acc_val = int(_accumulator)
+    mem_val = int(_programMemory[address])
+
+    result = acc_val - mem_val
+
+    _accumulator = f"{result:+05d}"
     return
 
-def divide(tuple):
-    # Takes parsed tuple
-    # Executes divide instruction
-    return
 
 def multiply(tuple):
-    # Takes parsed tuple
-    # Executes multiply instruction
+    global _accumulator
+    _, address, _ = tuple
+
+    acc_val = int(_accumulator)
+    mem_val = int(_programMemory[address])
+
+    result = acc_val * mem_val
+
+    _accumulator = f"{result:+05d}"
+    return
+
+
+def divide(tuple):
+    global _accumulator
+    _, address, _ = tuple
+
+    acc_val = int(_accumulator)
+    mem_val = int(_programMemory[address])
+
+    if mem_val == 0:
+        raise Exception("Division by zero error")
+
+    result = acc_val // mem_val
+
+    _accumulator = f"{result:+05d}"
     return
 
 def branch(tuple):
