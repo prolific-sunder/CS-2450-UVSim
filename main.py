@@ -65,19 +65,27 @@ def store(tuple):
     return
 
 def add(tuple):
+    '''
+    Add the value stored in memory at the given address to the accumulator
+    Result is stored back in the accumulator.
+    '''
     global _accumulator
-    _, address, _ = tuple
+    _, address, _ = tuple # Extract the memory address from the instruction
 
-    acc_val = int(_accumulator)
-    mem_val = int(_programMemory[address])
+    acc_val = int(_accumulator) # Covert accumulator string to integer
+    mem_val = int(_programMemory[address]) # Convert memory word to integer
 
-    result = acc_val + mem_val
+    result = acc_val + mem_val # Perform Addition
 
     _accumulator = f"{result:+05d}"
     return
 
 
 def subtract(tuple):
+    '''
+    Subtract the value stored in memory from the accumulator.
+    Result is stored back in the accumulator.
+    '''
     global _accumulator
     _, address, _ = tuple
 
@@ -91,6 +99,10 @@ def subtract(tuple):
 
 
 def multiply(tuple):
+    '''
+    Multiple the value in the accumulator by the value stored in memory.
+    Result is stored back in the accumulator.
+    '''
     global _accumulator
     _, address, _ = tuple
 
@@ -104,6 +116,12 @@ def multiply(tuple):
 
 
 def divide(tuple):
+    '''
+    Divide the value in thea ccumulator by the value stored in memory.
+    Result is stored back in the accumulator.
+
+    This currently uses floor division.
+    '''
     global _accumulator
     _, address, _ = tuple
 
