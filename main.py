@@ -148,7 +148,6 @@ def branchneg(tuple):
     # Takes parsed tuple
     # Executes branchneg instruction
     if (_accumulator[0] == '-'):
-        print("Accumulator is negative")
         global _programCounter
         _programCounter = int(tuple[1]) - 1
 
