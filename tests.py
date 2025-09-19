@@ -172,31 +172,31 @@ class TestBranch:
     def test_branch(self):
         main._programMemory["12"] = "+0012"
         main.branch(("40", "12", "+4012"))
-        assert main._programCounter == "12"
+        assert main._programCounter == 11
 
     def test_branch_neg(self):
         main._programMemory["13"] = "+0013"
         main._accumulator = "-0001"
         main.branchneg(("41", "13", "+4013"))
-        assert main._programCounter == "13"
+        assert main._programCounter == 12
 
     def test_branch_neg_false(self):
         main._programMemory["14"] = "+0014"
         main._accumulator = "0000"
         main.branchneg(("41", "14", "+4114"))
-        assert main._programCounter != "14"
+        assert main._programCounter != 13
 
     def test_branch_zero(self):
         main._programMemory["15"] = "+0015"
         main._accumulator = "0000"
         main.branchzero(("42", "15", "+4215"))
-        assert main._programCounter == "15"
+        assert main._programCounter == 14
 
     def test_branch_zero_false(self):
         main._programMemory["16"] = "+0016"
         main._accumulator = "0001"
         main.branchzero(("42", "16", "+4216"))
-        assert main._programCounter != "16"
+        assert main._programCounter != 15
 
 if __name__ == "__main__":
     # Run the tests
