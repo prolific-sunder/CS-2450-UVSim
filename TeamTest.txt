@@ -1,0 +1,24 @@
++1050 # Load from keyboard
++1150 # Write to screen what inputted
++2050 # Load inputted word into the acumulator
++2051 # Load same word into 51
++1052 # Load new from keyboard
++4012 # Branch to mem 12
++4300 # Halt
++0000
++0000
++0000
++0000
++0000
++3051 # Add first two words
++3152 # Subtract third to the result of previous program
++4118
++0000
++0000
++0000
++1053 # Load new into mem
++3253 # Divide by new word
++4208 # Branch if zero in accumulator
++2154 # Store accumulator into mem
++1154 
++4300
