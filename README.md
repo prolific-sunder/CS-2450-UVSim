@@ -11,7 +11,7 @@ UVSim has a 100 word memory, CPU, and memory registers
 pip install pytest
 
 ## Modules
-import pytest\n
+import pytest<br>
 import sys
 
 ## Instruction for use
