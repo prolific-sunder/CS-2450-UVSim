@@ -23,3 +23,4 @@ import sys
 
 ## Changelog 
 09/11/2025 - Initial creation, added README.md basic format and blank main.py
+09/19/2025 - Validated tests for main.py in main-function and merged main-function branch with main branch
