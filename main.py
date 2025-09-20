@@ -161,7 +161,7 @@ def branchneg(tuple):
 def branchzero(tuple):
     # Takes parsed tuple
     # Executes branchzero instruction
-    if (_accumulator == "+0000"):
+    if (_accumulator == "0000"):
         global _programCounter
         _programCounter = int(tuple[1]) - 1
 
