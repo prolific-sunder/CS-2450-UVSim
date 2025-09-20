@@ -16,7 +16,7 @@ import sys
 
 ## Instruction for use
 
--To run the program, utilize the terminal or command line with the following: python filename.py file.txt<br>
+-To run the program(main.py), utilize the terminal or command line with the following: python main.py file.txt<br>
 -File.txt must only contain words defined as "a signed four-digit decimal number, such as +1234, -5678"<br>
 -In the event you are prompted for input by the program, it must be a signed/unsigned integer number<br>
 -Any failure for file.txt or input will be met with an exception/error and exiting the program
