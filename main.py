@@ -1,10 +1,16 @@
-# MAIN FILE
 import sys
+import interface as face
 
-# Global Vars
 _accumulator = "+0000"
 _programCounter = 0
 _programMemory = {}
+
+# --- Core instruction implementations ---
+def _overflow_value(value: int) -> str:
+    """Truncate to signed four-digit word (keep last 4 digits)."""
+    sign = '+' if value >= 0 else '-'
+    digits = str(abs(value))[-4:]  # take last 4 digits only
+    return f"{sign}{digits.zfill(4)}"
 
 def parse(word):
     # Takes a string instruction
@@ -24,24 +30,35 @@ def parse(word):
     newTuple = (newWord[1:3], newWord[3:], newWord)
     return newTuple
 
-def read(tuple):
-    # Unpack tuple
-    _, address, _ = tuple
-    # Executes Read instruction
-    word = input("Enter input: ")
-    try:
-        # Try converting to int
-        value = int(word)
-        # Stores input to memory
-        _programMemory[address] = value
-    except ValueError:
-        raise ValueError("Program only accepts signed/unsigned integer values")
+def read(tuple, input):
+    length = len(input)
+    sinage = "+"
+
+    if input[0] == "+" or input[0] == "-":
+        if length > 5:
+            input = input[0] + input[length - 4:]
+            _programMemory[tuple[1]] = input
+        elif length == 5:
+            _programMemory[tuple[1]] = input
+        else:
+            input = input[0] + ("0" * (5 - length)) + input[1:]
+            _programMemory[tuple[1]] = input
+    else:             
+        if length > 4:
+            input = "+" + input[length - 4:]
+            _programMemory[tuple[1]] = input
+        elif length == 4:
+            input = "+" + input
+            _programMemory[tuple[1]] = input
+        else:
+            input = "+" + ("0" * (4 - length)) + input
+            _programMemory[tuple[1]] = input
 
 def write(tuple):
     # Takes parsed tuple
     _, address, _ = tuple
     # Executes write instruction
-    print(_programMemory[address])
+    return _programMemory[address]
 
 def load(tuple):
     # Takes parsed tuple
@@ -51,8 +68,7 @@ def load(tuple):
     try:
         _programMemory[tuple[1]] # Checking if memory address exists
     except KeyError:
-        print("Program halted with error code 1: Invalid memory address")
-        sys.exit(1)
+        raise Exception("Invalid memory address in LOAD")
     _accumulator = _programMemory[tuple[1]] # Loading value from memory to accumulator
     return
 
@@ -64,8 +80,7 @@ def store(tuple):
     try:
         _programMemory[tuple[1]] # Checking if memory address exists
     except KeyError:
-        print("Program halted with error code 1: Invalid memory address")
-        sys.exit(1) 
+        raise Exception("Invalid memory address in STORE")
     _programMemory[tuple[1]] = _accumulator # Storing value from accumulator to memory
     return
 
@@ -82,9 +97,8 @@ def add(tuple):
 
     result = acc_val + mem_val # Perform Addition
 
-    _accumulator = f"{result:+05d}"
+    _accumulator = _overflow_value(result)
     return
-
 
 def subtract(tuple):
     '''
@@ -99,9 +113,8 @@ def subtract(tuple):
 
     result = acc_val - mem_val
 
-    _accumulator = f"{result:+05d}"
+    _accumulator = _overflow_value(result)
     return
-
 
 def multiply(tuple):
     '''
@@ -116,9 +129,8 @@ def multiply(tuple):
 
     result = acc_val * mem_val
 
-    _accumulator = f"{result:+05d}"
+    _accumulator = _overflow_value(result)
     return
-
 
 def divide(tuple):
     '''
@@ -138,7 +150,7 @@ def divide(tuple):
 
     result = acc_val // mem_val
 
-    _accumulator = f"{result:+05d}"
+    _accumulator = _overflow_value(result)
     return
 
 def branch(tuple):
@@ -168,68 +180,7 @@ def branchzero(tuple):
     return
 
 def main():
-    # Accessing command line args
-    txtfile = sys.argv[1]
-
-    # Test for if file exists
-    try:
-        f = open(txtfile)
-        f.close
-    except:
-        #raise Exception("File not found!")
-        print("Program halted with error code 1: File not found")
-        return
+    gui = face.Window()       # Create the GUI
     
-    # Adding all instructions to the array
-    global _programMemory
-    with open(txtfile, 'r') as file:
-        memoryCounter = 0
-        for line in file:
-            _programMemory.update({"{:02d}".format(memoryCounter) : line.strip()})
-            memoryCounter += 1
-    
-    # Populating all the remaining memory locations
-    while (memoryCounter < 100):
-        _programMemory.update({"{:02d}".format(memoryCounter) : "+0000"})
-        memoryCounter += 1
-
-    # Parsing through the instructions, and calling the Parse function
-    global _accumulator
-    global _programCounter
-    while (_programCounter < 100):
-        # Call the parser
-        tuple = parse(_programMemory["{:02d}".format(_programCounter)])
-
-        # Call each instruct function
-        if tuple[0] == '10':
-            read(tuple)
-        elif tuple[0] == '11':
-            write(tuple)
-        elif tuple[0] == '20':
-            load(tuple)
-        elif tuple[0] == '21':
-            store(tuple)
-        elif tuple[0] == '30':
-            add(tuple)
-        elif tuple[0] == '31':
-            subtract(tuple)
-        elif tuple[0] == '32':
-            divide(tuple)
-        elif tuple[0] == '33':
-            multiply(tuple)
-        elif tuple[0] == '40':
-            branch(tuple)
-        elif tuple[0] == '41':
-            branchneg(tuple)
-        elif tuple[0] == '42':
-            branchzero(tuple)
-        elif tuple[0] == '43':
-            _programCounter += 100
-
-        # Increment Program counter
-        _programCounter += 1
-    
-    print("Program halted with code 0")
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
