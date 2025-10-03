@@ -39,12 +39,12 @@ class Window:
         self.varsState.place(x=200, y=295)
 
         tk.Label(self.root, text="Program Instructions", bg="#6F7681", font=("Helvetica", 18)).place(x=200, y=370)
-        self.instructState = tk.Label(self.root, text="", bg="white", font=("Helvetica", 12), width=50, height=5, anchor="nw")
+        self.instructState = tk.Label(self.root, text="To use UVSim, first click Load File and select a .txt program file. Then press Run Program to begin execution. Input is indicated by the ability to type in the User Console box, when input is indicated type a signed or unsigned four-digit number (for example: +0045, -1234, or 0007) into the User Console and press Enter. Program output and messages will appear in the System Messages panel, while the Accumulator and Program Counter update automatically as the program runs. You can click Reset Program at any time to clear memory and restart, or Exit Program to close UVSim.", bg="white", font=("Helvetica", 10), width=55, height=9, anchor="nw", justify="left", wraplength=405)
         self.instructState.place(x=200, y=405)
 
-        tk.Label(self.root, text="User Console", bg="#6F7681", font=("Helvetica", 18)).place(x=200, y=515)
+        tk.Label(self.root, text="User Console", bg="#6F7681", font=("Helvetica", 18)).place(x=200, y=565)
         self.userInput = tk.Entry(self.root, width=45, font=("Courier New", 12), state="disabled")
-        self.userInput.place(x=200, y=547)
+        self.userInput.place(x=200, y=600)
         self.userInput.bind("<Return>", self._submit_input)
         self.userQueue = []  # store submitted inputs
 
@@ -257,3 +257,4 @@ class Window:
             self.write_system("Program finished...")
         except Exception as e:
             self.write_system(f"Runtime Error: {e}")
+
