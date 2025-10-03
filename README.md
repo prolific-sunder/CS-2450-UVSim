@@ -14,7 +14,9 @@ UVSim is a virtual machine designed to interpret BasicML instructions. This impl
 ## Installation
 1. Download this repository.
 2. Ensure Python 3.8+ is installed.<br>
-3. Install dependencies:<br>
+3. Install dependencies<br>
+
+Dependencies:
 
 pip install pytest
 
