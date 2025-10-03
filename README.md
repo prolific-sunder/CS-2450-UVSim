@@ -38,9 +38,11 @@ Within the GUI window, the user will have access to the following functionalitie
 
 ### File/Input Requirements
 -When loading a file, program expects no more than 4 digits and one potential +/- sign. If more than 4 digits, invalid characters, or duplicate signs are added, an error will be thrown.<br>
-EXAMPLES: +1102 | -0009 | 4300 | ERRORS: abcde | 209123 | 0.0 <br>
+EXAMPLES: +1102 | -0009 | 4300 <br>
+ERRORS: abcde | 209123 | 0.0 <br>
 -When giving User Input, program expects no more than 4 digits and one potential +/- sign. If more than 4 digits, program will treat it as overflow and use the last 4 digits in the integer. Invalid characters or duplicate signs will result in an error being thrown.<br>
-EXAMPLES: +1102 | -0009 | 4300 | 918234 (overflowed to 8234) | ERRORS: abc | ++2091 | 0.0 <br>
+EXAMPLES: +1102 | -0009 | 4300 | 918234 (overflowed to 8234) <br>
+ERRORS: abc | ++2091 | 0.0 <br>
 
 ## Changelog 
 09/11/2025 - Initial creation, added README.md basic format and blank main.py.<br>
