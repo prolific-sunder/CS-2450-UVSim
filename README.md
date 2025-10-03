@@ -41,6 +41,6 @@ Within the GUI window, the user will have access to the following functionalitie
 -When giving User Input, program expects no more than 4 digits and one potential +/- sign. If more than 4 digits, program will treat it as overflow and use the last 4 digits in the integer. Invalid characters or duplicate signs will result in an error being thrown.<br>
 
 ## Changelog 
-09/11/2025 - Initial creation, added README.md basic format and blank main.py
-09/19/2025 - Validated tests for main.py in main-function and merged main-function branch with main branch
-10/1/2025 - Implemented new GUI with tkinter and integrated it with main.py. Added overflow handling functions to main.py.
+09/11/2025 - Initial creation, added README.md basic format and blank main.py.<br>
+09/19/2025 - Validated tests for main.py in main-function and merged main-function branch with main branch.<br>
+10/1/2025 - Implemented new GUI with tkinter and integrated it with main.py. Added overflow handling functions to main.py.<br>
