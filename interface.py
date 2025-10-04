@@ -80,6 +80,7 @@ class Window:
         # set up system variables
         self.initial_memory = {}
         self.run_thread = None
+        self.file_valid = False
 
         # keep GUI/Window running unless closed
         self.root.mainloop()
@@ -88,19 +89,82 @@ class Window:
 
     def load_file(self):
         """Utilizes filedialog to open a file and read it into memory"""
-        filepath = filedialog.askopenfilename(title="Select a Program File", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
-        if not filepath:
-            return None
-        core._programMemory.clear()
-        with open(filepath, 'r') as f:
-            for i, line in enumerate(f):
-                core._programMemory[f"{i:02d}"] = line.strip()
-        for i in range(len(core._programMemory), 100):
-            core._programMemory[f"{i:02d}"] = "+0000"
-        self.build_memory_table(core._programMemory, save_initial=True)
+        try:
+            filepath = filedialog.askopenfilename(title="Select a Program File", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+            if not filepath:
+                return None
+            
+            # Clear and initialize memory
+            core._programMemory.clear()
+            for i in range(100):
+                core._programMemory[f"{i:02d}"] = "+0000"
+            
+            # Read and validate file
+            errors = []
+            line_count = 0
+            
+            with open(filepath, 'r') as f:
+                for i, line in enumerate(f):
+                    if i >= 100:
+                        errors.append(f"Line {i+1}: File exceeds 100 lines")
+                        break
+                    
+                    line = line.strip()
+                    
+                    # Skip empty lines and comments
+                    if not line or line.startswith('#'):
+                        continue
+                    
+                    # Remove inline comments
+                    if '#' in line:
+                        line = line.split('#')[0].strip()
+                    
+                    if not line:
+                        continue
+                    
+                    # Validate instruction
+                    try:
+                        core.parse(line)
+                        core._programMemory[f"{i:02d}"] = line
+                        line_count += 1
+                    except Exception as e:
+                        errors.append(f"Line {i+1}: {str(e)}")
+            
+            # Update display
+            self.build_memory_table(core._programMemory, save_initial=True)
+            
+            # Report results
+            if errors:
+                error_msg = "File loaded with errors:\n\n" + "\n".join(errors[:10])
+                if len(errors) > 10:
+                    error_msg += f"\n\n... and {len(errors) - 10} more errors"
+                messagebox.showerror("Load File - Validation Errors", error_msg)
+                self.write_system(f"ERROR: File has {len(errors)} validation error(s). Cannot run program.")
+                self.program_valid = False
+            else:
+                self.write_system(f"File loaded successfully: {line_count} instructions")
+                self.program_valid = True
+                
+        except FileNotFoundError:
+            messagebox.showerror("Load File Error", "File not found")
+            self.write_system("ERROR: File not found")
+            self.program_valid = False
+        except PermissionError:
+            messagebox.showerror("Load File Error", "Permission denied")
+            self.write_system("ERROR: Cannot read file - permission denied")
+            self.program_valid = False
+        except Exception as e:
+            messagebox.showerror("Load File Error", f"Error loading file:\n{str(e)}")
+            self.write_system(f"ERROR: {str(e)}")
+            self.program_valid = False
 
     def run_program(self):
         """Utilizes threading module and calls _run_program_thread"""
+        if not self.program_valid:
+            messagebox.showinfo("Run Program", "No valid program loaded. Please load a valid file first.")
+            self.write_system("ERROR: No valid program loaded. Cannot run.")
+            return
+        
         if self.run_thread and self.run_thread.is_alive():
             messagebox.showinfo("Run Program", "Program is already running.")
             return
@@ -212,41 +276,66 @@ class Window:
         """Runs all instructions/code in memory. Calls class definitions and definitions from main.py."""
         self.write_system("Running program...")
         core._programCounter = 0
+        
         try:
             while core._programCounter < 100:
                 instr = core._programMemory.get(f"{core._programCounter:02d}", "+0000")
-                tuple_instr = core.parse(instr)
+                
+                # Skip empty memory
+                if instr == "+0000" or instr == "0000":
+                    core._programCounter += 1
+                    continue
+                
+                # Parse instruction
+                try:
+                    tuple_instr = core.parse(instr)
+                    opcode = tuple_instr[0]
+                    #opcode = f"{tuple_instr[0]:02d}" # (Use this for debugging)
+                    #self.write_system(f"DEBUG: opcode={opcode}' repr={repr(opcode)}")
+                except Exception as e:
+                    self.write_system(f"Parse Error at line {core._programCounter:02d}: {str(e)}")
+                    self.write_system("Program halted")
+                    return
+                
                 opcode = tuple_instr[0]
+                jumped = False
 
-                jumped = False  # track whether branch changed PC
-
-                if opcode == '10':  # read
-                    self.write_system("Please enter a number...: ")
-                    core.read(tuple_instr, self.get_input())
-                elif opcode == '11':  # write
-                    self.write_system(core.write(tuple_instr))
-                elif opcode == '20':  #load
-                    core.load(tuple_instr)
-                elif opcode == '21':  #store
-                    core.store(tuple_instr)
-                elif opcode == '30':  #add
-                    core.add(tuple_instr)
-                elif opcode == '31':  #subtract
-                    core.subtract(tuple_instr)
-                elif opcode == '32':  #divide
-                    core.divide(tuple_instr)
-                elif opcode == '33':  #multiply
-                    core.multiply(tuple_instr)
-                elif opcode == '40':  # branch (unconditional)
-                    core.branch(tuple_instr)
-                    jumped = True
-                elif opcode == '41':  # branchneg
-                    jumped = core.branchneg(tuple_instr)
-                elif opcode == '42':  # branchzero
-                    jumped = core.branchzero(tuple_instr)
-
-                elif opcode == '43':
-                    break  # halt
+                # Execute instruction with error handling
+                try:
+                    if opcode == '10':  # read
+                        self.write_system("Please enter a number...: ")
+                        core.read(tuple_instr, self.get_input())
+                    elif opcode == '11':  # write
+                        self.write_system(core.write(tuple_instr))
+                    elif opcode == '20':  # load
+                        core.load(tuple_instr)
+                    elif opcode == '21':  # store
+                        core.store(tuple_instr)
+                    elif opcode == '30':  # add
+                        core.add(tuple_instr)
+                    elif opcode == '31':  # subtract
+                        core.subtract(tuple_instr)
+                    elif opcode == '32':  # divide
+                        core.divide(tuple_instr)
+                    elif opcode == '33':  # multiply
+                        core.multiply(tuple_instr)
+                    elif opcode == '40':  # branch
+                        core.branch(tuple_instr)
+                        jumped = True
+                    elif opcode == '41':  # branchneg
+                        jumped = core.branchneg(tuple_instr)
+                    elif opcode == '42':  # branchzero
+                        jumped = core.branchzero(tuple_instr)
+                    elif opcode == '43':  # halt
+                        self.write_system("Program halted normally")
+                        break
+                    else:
+                        self.write_system(f"Warning: Unknown opcode '{opcode}' at line {core._programCounter:02d}")
+                
+                except Exception as e:
+                    self.write_system(f"Runtime Error at line {core._programCounter:02d}: {str(e)}")
+                    self.write_system("Program halted")
+                    return
 
                 if not jumped:
                     core._programCounter += 1
@@ -254,9 +343,11 @@ class Window:
                 self.root.after(0, self.update_vars)
                 self.update_memory(core._programMemory)
                 time.sleep(0.01)
-            self.write_system("Program finished...")
+                
+            self.write_system("Program finished")
+            
         except Exception as e:
-            self.write_system(f"Runtime Error: {e}")
-
+            self.write_system(f"Fatal Error: {str(e)}")
+            self.write_system("Program terminated")
 
 
