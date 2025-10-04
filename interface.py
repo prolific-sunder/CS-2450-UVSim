@@ -98,14 +98,18 @@ class Window:
             core._programMemory.clear()
             for i in range(100):
                 core._programMemory[f"{i:02d}"] = "+0000"
+
+            core._accumulator = "+0000" # Reset accumulator
+            core._programCounter = 0 # Reset program counter
             
             # Read and validate file
             errors = []
             line_count = 0
-            
+            memory_index = 0
+
             with open(filepath, 'r') as f:
                 for i, line in enumerate(f):
-                    if i >= 100:
+                    if memory_index >= 100:
                         errors.append(f"Line {i+1}: File exceeds 100 lines")
                         break
                     
@@ -125,8 +129,9 @@ class Window:
                     # Validate instruction
                     try:
                         core.parse(line)
-                        core._programMemory[f"{i:02d}"] = line
+                        core._programMemory[f"{memory_index:02d}"] = line
                         line_count += 1
+                        memory_index += 1
                     except Exception as e:
                         errors.append(f"Line {i+1}: {str(e)}")
             
@@ -140,27 +145,27 @@ class Window:
                     error_msg += f"\n\n... and {len(errors) - 10} more errors"
                 messagebox.showerror("Load File - Validation Errors", error_msg)
                 self.write_system(f"ERROR: File has {len(errors)} validation error(s). Cannot run program.")
-                self.program_valid = False
+                self.file_valid = False
             else:
                 self.write_system(f"File loaded successfully: {line_count} instructions")
-                self.program_valid = True
+                self.file_valid = True
                 
         except FileNotFoundError:
             messagebox.showerror("Load File Error", "File not found")
             self.write_system("ERROR: File not found")
-            self.program_valid = False
+            self.file_valid = False
         except PermissionError:
             messagebox.showerror("Load File Error", "Permission denied")
             self.write_system("ERROR: Cannot read file - permission denied")
-            self.program_valid = False
+            self.file_valid = False
         except Exception as e:
             messagebox.showerror("Load File Error", f"Error loading file:\n{str(e)}")
             self.write_system(f"ERROR: {str(e)}")
-            self.program_valid = False
+            self.file_valid = False
 
     def run_program(self):
         """Utilizes threading module and calls _run_program_thread"""
-        if not self.program_valid:
+        if not self.file_valid:
             messagebox.showinfo("Run Program", "No valid program loaded. Please load a valid file first.")
             self.write_system("ERROR: No valid program loaded. Cannot run.")
             return
@@ -349,5 +354,3 @@ class Window:
         except Exception as e:
             self.write_system(f"Fatal Error: {str(e)}")
             self.write_system("Program terminated")
-
-
