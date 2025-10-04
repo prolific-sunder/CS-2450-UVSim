@@ -236,15 +236,14 @@ class Window:
                     core.divide(tuple_instr)
                 elif opcode == '33':  #multiply
                     core.multiply(tuple_instr)
-                elif opcode == '40':  #branch
+                elif opcode == '40':  # branch (unconditional)
                     core.branch(tuple_instr)
                     jumped = True
-                elif opcode == '41':  #branchneg
-                    core.branchneg(tuple_instr)
-                    jumped = True
-                elif opcode == '42':  #branchzero
-                    core.branchzero(tuple_instr)
-                    jumped = True
+                elif opcode == '41':  # branchneg
+                    jumped = core.branchneg(tuple_instr)
+                elif opcode == '42':  # branchzero
+                    jumped = core.branchzero(tuple_instr)
+
                 elif opcode == '43':
                     break  # halt
 
@@ -257,4 +256,5 @@ class Window:
             self.write_system("Program finished...")
         except Exception as e:
             self.write_system(f"Runtime Error: {e}")
+
 
