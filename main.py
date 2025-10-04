@@ -16,23 +16,49 @@ def parse(word):
     # Takes a string instruction
     # Returns a tuple
     # Check if word is signed
-    newWord = '+'
-    if (word[0] != '+') and (word[0] != '-'):
-        newWord += word
-    else:
-        newWord = word
-
-    # Check if word is right size
-    if (len(word) != 5):
-        raise Exception("Word instruction not correct length")
+    if not word: # Check for empty string
+        raise ValueError("Empty word instruction")
     
-    # Create the tuple
-    newTuple = (newWord[1:3], newWord[3:], newWord)
-    return newTuple
+    word = word.strip() # Remove whitespace
+    
+    if len(word) < 4: # Check for too short
+        raise ValueError(f"Instruction too short: '{word}' (need at least 4 digits)")
+    
+    # Handle sign
+    newWord = word
+    if word[0] not in ('+', '-'):
+        newWord = '+' + word
+    
+    # Check length after adding sign
+    if len(newWord) != 5:
+        if len(newWord) > 5:
+            raise ValueError(f"Instruction too long: '{word}' (max 4 digits plus sign)")
+        else:
+            raise ValueError(f"Instruction invalid: '{word}")
+        
+    # Check if all characters are digits (except sign)
+    if not newWord[1:].isdigit():
+        raise ValueError(f"Instruction contains non-digit characters: '{word}'")
+    
+    # Parse into components
+    opcode = (newWord[1:3])  # First two digits after sign
+    operand = (newWord[3:])   # Last two digits
+    return (opcode, operand, newWord)
 
 def read(tuple, input):
+    """Read input and store in memory at given address."""
+    if input is None:
+        raise ValueError("No input provided for READ instruction")
+    
+    input = input.strip() # Remove whitespace
+
+    if not input: # Check for empty string
+        raise ValueError("Empty input for READ instruction")
+    
+    if tuple[1] not in _programMemory:
+        raise ValueError(f"Invalid memory address in READ: {tuple[1]}")
+    
     length = len(input)
-    sinage = "+"
 
     if input[0] == "+" or input[0] == "-":
         if length > 5:
@@ -55,8 +81,13 @@ def read(tuple, input):
             _programMemory[tuple[1]] = input
 
 def write(tuple):
+    """Write value from memory at given address."""
     # Takes parsed tuple
     _, address, _ = tuple
+
+    if address not in _programMemory:
+        raise ValueError(f"Invalid memory address in WRITE: {address}")
+    
     # Executes write instruction
     return _programMemory[address]
 
@@ -65,10 +96,10 @@ def load(tuple):
     # Executes load instruction
     global _accumulator # Accessing global accumulator
     global _programMemory # Accessing global program memory
-    try:
-        _programMemory[tuple[1]] # Checking if memory address exists
-    except KeyError:
-        raise Exception("Invalid memory address in LOAD")
+
+    if tuple[1] not in _programMemory: # Checking if memory address exists
+        raise ValueError(f"Invalid memory address in LOAD: '{tuple[1]}'")
+    
     _accumulator = _programMemory[tuple[1]] # Loading value from memory to accumulator
     return
 
@@ -77,10 +108,10 @@ def store(tuple):
     # Executes store instruction
     global _accumulator # Accessing global accumulator
     global _programMemory # Accessing global program memory
-    try:
-        _programMemory[tuple[1]] # Checking if memory address exists
-    except KeyError:
-        raise Exception("Invalid memory address in STORE")
+    
+    if tuple[1] not in _programMemory: # Checking if memory address exists
+        raise ValueError(f"Invalid memory address in STORE: '{tuple[1]}'")
+    
     _programMemory[tuple[1]] = _accumulator # Storing value from accumulator to memory
     return
 
@@ -92,6 +123,9 @@ def add(tuple):
     global _accumulator
     _, address, _ = tuple # Extract the memory address from the instruction
 
+    if address not in _programMemory:
+        raise ValueError(f"Invalid memory address in ADD: '{address}'")
+    
     acc_val = int(_accumulator) # Covert accumulator string to integer
     mem_val = int(_programMemory[address]) # Convert memory word to integer
 
@@ -108,6 +142,9 @@ def subtract(tuple):
     global _accumulator
     _, address, _ = tuple
 
+    if address not in _programMemory:
+        raise ValueError(f"Invalid memory address in SUBTRACT: '{address}'")
+
     acc_val = int(_accumulator)
     mem_val = int(_programMemory[address])
 
@@ -123,6 +160,9 @@ def multiply(tuple):
     '''
     global _accumulator
     _, address, _ = tuple
+
+    if address not in _programMemory:
+        raise ValueError(f"Invalid memory address in MULTIPLY: '{address}'")
 
     acc_val = int(_accumulator)
     mem_val = int(_programMemory[address])
@@ -142,11 +182,14 @@ def divide(tuple):
     global _accumulator
     _, address, _ = tuple
 
+    if address not in _programMemory:
+        raise ValueError(f"Invalid memory address in DIVIDE: '{address}'")
+    
     acc_val = int(_accumulator)
     mem_val = int(_programMemory[address])
 
     if mem_val == 0: #Prevents a division by 0 error
-        raise Exception("Division by zero error")
+        raise ValueError("Division by zero error")
 
     result = acc_val // mem_val
 
@@ -156,6 +199,10 @@ def divide(tuple):
 def branch(tuple):
     """Unconditional branch: always set PC to operand."""
     global _programCounter
+    address = tuple[1]
+    if not address.isdigit() or not (0 <= int(address) <= 99):
+        raise ValueError(f"Invalid branch address: '{address}'")
+
     _programCounter = int(tuple[1])
 
 def branchneg(tuple):
@@ -166,16 +213,21 @@ def branchneg(tuple):
         if int(_accumulator) < 0:
             _programCounter = int(tuple[1])
     except ValueError:
-        raise Exception(f"Invalid accumulator value: {_accumulator}")
+        raise ValueError(f"Invalid accumulator value: {_accumulator}")
     return _programCounter != old_pc
 
 def branchzero(tuple):
     """Branch if accumulator is zero."""
     global _accumulator, _programCounter
     old_pc = _programCounter
+
     if int(_accumulator) == 0:
+        address = tuple[1]
+        if not address.isdigit() or not (0 <= int(address) <= 99):
+            raise ValueError(f"Invalid branch address: '{address}'")
         _programCounter = int(tuple[1])
     return _programCounter != old_pc
+
 
 def main():
     gui = face.Window()       # Create the GUI
