@@ -154,30 +154,28 @@ def divide(tuple):
     return
 
 def branch(tuple):
-    # Takes parsed tuple
-    # Executes branch instruction
+    """Unconditional branch: always set PC to operand."""
     global _programCounter
-    _programCounter = int(tuple[1]) - 1
-
-    return
+    _programCounter = int(tuple[1])
 
 def branchneg(tuple):
-    # Takes parsed tuple
-    # Executes branchneg instruction
-    if (_accumulator[0] == '-'):
-        global _programCounter
-        _programCounter = int(tuple[1]) - 1
-
-    return
+    """Branch if accumulator is negative."""
+    global _accumulator, _programCounter
+    old_pc = _programCounter
+    try:
+        if int(_accumulator) < 0:
+            _programCounter = int(tuple[1])
+    except ValueError:
+        raise Exception(f"Invalid accumulator value: {_accumulator}")
+    return _programCounter != old_pc
 
 def branchzero(tuple):
-    # Takes parsed tuple
-    # Executes branchzero instruction
-    if (_accumulator == "0000"):
-        global _programCounter
-        _programCounter = int(tuple[1]) - 1
-
-    return
+    """Branch if accumulator is zero."""
+    global _accumulator, _programCounter
+    old_pc = _programCounter
+    if int(_accumulator) == 0:
+        _programCounter = int(tuple[1])
+    return _programCounter != old_pc
 
 def main():
     gui = face.Window()       # Create the GUI
