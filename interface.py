@@ -221,6 +221,7 @@ class Window:
                 jumped = False  # track whether branch changed PC
 
                 if opcode == '10':  # read
+                    self.write_system("Please enter a number...: ")
                     core.read(tuple_instr, self.get_input())
                 elif opcode == '11':  # write
                     self.write_system(core.write(tuple_instr))
@@ -256,5 +257,6 @@ class Window:
             self.write_system("Program finished...")
         except Exception as e:
             self.write_system(f"Runtime Error: {e}")
+
 
 
