@@ -149,6 +149,7 @@ class Window:
             else:
                 self.write_system(f"File loaded successfully: {line_count} instructions")
                 self.file_valid = True
+                self.enable_memory_editing()
                 
         except FileNotFoundError:
             messagebox.showerror("Load File Error", "File not found")
@@ -163,6 +164,124 @@ class Window:
             self.write_system(f"ERROR: {str(e)}")
             self.file_valid = False
 
+    # --- Memory Editing Features ---
+
+    def enable_memory_editing(self):
+        """Allow user to double-click cells and edit the memory items."""
+        self.memoryState.bind("<Double-1>", self._on_double_click_edit)
+        self.root.bind("<Control-c>", self._copy_selection)
+        self.root.bind("<Control-x>", self._cut_selection)
+        self.root.bind("<Control-v>", self._paste_selection)
+        self.root.bind("<Delete>", self._delete_selection)
+
+        # Context menu for right-click (add/delete rows)
+        self.memory_menu = tk.Menu(self.root, tearoff=0)
+        self.memory_menu.add_command(label="Add Entry", command=self._add_entry)
+        self.memory_menu.add_command(label="Delete Entry", command=self._delete_selection)
+        self.memory_menu.add_separator()
+        self.memory_menu.add_command(label="Cut", command=self._cut_selection)
+        self.memory_menu.add_command(label="Copy", command=self._copy_selection)
+        self.memory_menu.add_command(label="Paste", command=self._paste_selection)
+        self.memoryState.bind("<Button-3>", self._show_context_menu)
+
+        self.write_system("Memory editing enabled. Double-click to edit or right-click for options.")
+
+    def _on_double_click_edit(self, event):
+        """Handle double-click cell editing for memory values."""
+        region = self.memoryState.identify("region", event.x, event.y)
+        if region != "cell":
+            return
+        item = self.memoryState.identify_row(event.y)
+        column = self.memoryState.identify_column(event.x)
+
+        if column == "#2":  # only allow editing memory value
+            x, y, width, height = self.memoryState.bbox(item, column)
+            value = self.memoryState.item(item, "values")[1]
+
+            edit_box = tk.Entry(self.memoryState, width=10, font=("Courier New", 12))
+            edit_box.place(x=x, y=y, width=width, height=height)
+            edit_box.insert(0, value)
+            edit_box.focus()
+
+            def save_edit(event=None):
+                new_val = edit_box.get().strip()
+                index = int(self.memoryState.item(item, "values")[0])
+                if not self._validate_instruction(new_val):
+                    messagebox.showerror("Invalid Entry", f"'{new_val}' is not a valid instruction format.")
+                else:
+                    self.memoryState.item(item, values=(f"{index:02d}", new_val))
+                    core._programMemory[f"{index:02d}"] = new_val
+                edit_box.destroy()
+
+            edit_box.bind("<Return>", save_edit)
+            edit_box.bind("<FocusOut>", lambda e: edit_box.destroy())
+
+    def _validate_instruction(self, value):
+        """Check if instruction is valid format."""
+        if not value:
+            return False
+        try:
+            core.parse(value)
+            return True
+        except Exception:
+            return False
+
+    def _copy_selection(self, event=None):
+        """Copy selected rows to clipboard."""
+        selection = [self.memoryState.item(i, "values")[1] for i in self.memoryState.selection()]
+        if selection:
+            self.root.clipboard_clear()
+            self.root.clipboard_append("\n".join(selection))
+
+    def _cut_selection(self, event=None):
+        """Cut selected rows (copy then clear)."""
+        self._copy_selection()
+        for i in self.memoryState.selection():
+            index = int(self.memoryState.item(i, "values")[0])
+            self.memoryState.item(i, values=(f"{index:02d}", "+0000"))
+            core._programMemory[f"{index:02d}"] = "+0000"
+
+    def _paste_selection(self, event=None):
+        """Paste clipboard contents starting from first selected row."""
+        if not self.memoryState.selection():
+            return
+        start_index = int(self.memoryState.item(self.memoryState.selection()[0], "values")[0])
+        pasted = self.root.clipboard_get().splitlines()
+
+        for offset, line in enumerate(pasted):
+            idx = start_index + offset
+            if idx >= 100:
+                messagebox.showwarning("Paste Limit", "Reached max memory size (100).")
+                break
+            if self._validate_instruction(line):
+                self.memoryState.item(self.memoryState.get_children()[idx], values=(f"{idx:02d}", line))
+                core._programMemory[f"{idx:02d}"] = line
+
+    def _delete_selection(self, event=None):
+        """Delete (clear) selected memory rows."""
+        for i in self.memoryState.selection():
+            index = int(self.memoryState.item(i, "values")[0])
+            self.memoryState.item(i, values=(f"{index:02d}", "+0000"))
+            core._programMemory[f"{index:02d}"] = "+0000"
+
+    def _add_entry(self):
+        """Add a blank new memory line if space allows."""
+        current_count = len(self.memoryState.get_children())
+        if current_count >= 100:
+            messagebox.showwarning("Memory Full", "Maximum of 100 entries allowed.")
+            return
+        new_index = current_count
+        self.memoryState.insert("", "end", values=(f"{new_index:02d}", "+0000"))
+        core._programMemory[f"{new_index:02d}"] = "+0000"
+        self.write_system(f"Added new memory entry at {new_index:02d}.")
+
+    def _show_context_menu(self, event):
+        """Display right-click context menu."""
+        try:
+            self.memory_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.memory_menu.grab_release()
+            
     def run_program(self):
         """Utilizes threading module and calls _run_program_thread"""
         if not self.file_valid:
@@ -354,3 +473,4 @@ class Window:
         except Exception as e:
             self.write_system(f"Fatal Error: {str(e)}")
             self.write_system("Program terminated")
+
