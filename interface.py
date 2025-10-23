@@ -100,6 +100,10 @@ class Window:
         self.initial_memory = {}
         self.run_thread = None
         self.file_valid = False
+        self.current_filepath = None
+
+        # wait for 'ctrl+s'
+        self.root.bind('<Control-s>', self.save_file)
 
         # keep GUI/Window running unless closed
         self.root.mainloop()
@@ -119,7 +123,8 @@ class Window:
             "• Right-click a row for Cut / Copy / Paste / Delete options.\n"
             "• Invalid entries are highlighted in red and listed in System Messages.\n"
             "• Selected memory cell is highlighted in white.\n"
-            "• You can load, inspect, and modify memory before running the program."
+            "• You can load, inspect, and modify memory before running the program.\n"
+            "• Save your file by typing 'CTRL+S'"
         )
         messagebox.showinfo("How to Edit", help_text)
 
@@ -178,6 +183,9 @@ class Window:
 
             # Update display
             self.build_memory_table(core._programMemory, save_initial=True)
+            self.current_filepath = filepath
+            self.file_valid = True
+            self.write_system(f"Loaded file: {filepath}")
 
             # Report results
             if errors:
@@ -514,6 +522,59 @@ class Window:
                 # mark invalid
                 self.memoryState.item(item_id, tags=('invalid',))
         return errors
+    
+    # -------- SAVE PROGRAM ------
+
+    def save_file(self, event):
+        # validate editor contents into core._programMemory
+        errors = self.validate_memory_from_editor()
+        if errors:
+            # ask user whether to proceed despite validation errors
+            proceed = messagebox.askyesno(
+                "Save - Validation issues",
+                ("There are validation errors in memory. Do you want to save anyway?"))
+            if not proceed:
+                return
+
+        # run save function
+        return self.save_file_as()
+
+    def save_file_as(self):
+        """
+        Prompt the user for save location (ask for filename)
+        """
+        # validate editor contents
+        errors = self.validate_memory_from_editor()
+        if errors:
+            proceed = messagebox.askyesno(
+                "Save As - Validation issues",
+                ("There are validation errors in memory. Do you want to save anyway?"))
+            if not proceed:
+                return
+
+        path = filedialog.asksaveasfilename(
+            title="Save Program As",
+            defaultextension=".txt",
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+        if not path:
+            return
+        try:
+            lines = [core._programMemory.get(f"{i:02d}", "+0000") for i in range(100)]
+            last = -1
+            for i, val in enumerate(lines):
+                if val != "+0000":
+                    last = i
+            write_lines = [] if last == -1 else lines[: last + 1]
+            with open(path, "w", encoding="utf-8") as f:
+                for ln in write_lines:
+                    f.write(str(ln).strip() + "\n")
+            self.current_filepath = path
+            self.file_valid = True
+            self.write_system(f"Saved program to {path}")
+            messagebox.showinfo("Save File As", "File saved successfully.")
+        except Exception as e:
+            messagebox.showerror("Save As Error", f"Error saving file:\n{str(e)}")
+            self.write_system(f"ERROR saving file: {str(e)}")
 
     # -------- RUN PROGRAM -------
 
