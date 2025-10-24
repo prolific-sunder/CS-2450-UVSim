@@ -1,59 +1,84 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, simpledialog
+from tkinter import ttk, filedialog, messagebox, simpledialog, colorchooser
 import threading
 import time
+import json
+import os
 import main as core
 
 class Window:
     def __init__(self, name="UVsim", size="1280x720"):
+        # Load colors from config
+        self.primary_color, self.secondary_color = self.load_colors()
+        
         # --- Main Window ---
         self.root = tk.Tk()
         self.root.title(name)
-        self.root.configure(background="#6F7681")
+        self.root.configure(background=self.primary_color)
         self.root.geometry(size)
 
         # Clipboard for cut/copy/paste (list of strings)
         self.clipboard = []
 
         # --- Left Side Buttons ---
-        tk.Button(self.root, text="Load File", width=12, height=2, command=self.load_file).grid(row=0, column=0, padx=20, pady=6)
-        tk.Button(self.root, text="Run Program", width=12, height=2, command=self.run_program).grid(row=1, column=0, padx=20, pady=6)
-        tk.Button(self.root, text="Reset Program", width=12, height=2, command=self.reset_memory).grid(row=2, column=0, padx=20, pady=6)
+        # --- Left Side Buttons ---
+        self.load_btn = tk.Button(self.root, text="Load File", width=12, height=4, command=self.load_file)
+        self.load_btn.grid(row=0, column=0, padx=20, pady=20)
         
-        # Edit controls
-        tk.Label(self.root, text="Program Help", bg="#6F7681", font=("Helvetica", 12)).grid(row=4, column=0, pady=(10,0))
-        tk.Button(self.root, text="Program Use", width=12, command=self.show_program_help).grid(row=5, column=0, padx=20, pady=4)
-        tk.Button(self.root, text="How to Edit", width=12, command=self.show_edit_help).grid(row=6, column=0, padx=20, pady=4)
+        self.run_btn = tk.Button(self.root, text="Run Program", width=12, height=4, command=self.run_program)
+        self.run_btn.grid(row=1, column=0, padx=20, pady=20)
+        
+        self.reset_btn = tk.Button(self.root, text="Reset Program", width=12, height=4, command=self.reset_memory)
+        self.reset_btn.grid(row=2, column=0, padx=20, pady=20)
+        
+        self.theme_btn = tk.Button(self.root, text="Theme Settings", width=12, height=4, command=self.open_theme_settings)
+        self.theme_btn.grid(row=3, column=0, padx=20, pady=20)
+        
+        self.help_label = tk.Label(self.root, text="Program Help", bg=self.primary_color, font=("Helvetica", 12))
+        self.help_label.grid(row=4, column=0, padx=20, pady=6)
+        self.help_btn1 = tk.Button(self.root, text="Program Use", width=12, command=self.show_program_instructions)
+        self.help_btn1.grid(row=5, column=0, padx=20, pady=6)
+        self.help_btn2 = tk.Button(self.root, text="How to Edit", width=12, command=self.show_edit_instructions)
+        self.help_btn2.grid(row=6, column=0, padx=20, pady=6)
 
-        tk.Label(self.root, text="UVSim", bg="#6F7681", font=("Helvetica", 30)).place(rely=1.0, relx=0, x=10, y=-5, anchor="sw")
-        tk.Canvas(self.root, width=3, height=900, bg="#6F7681", bd=0, highlightthickness=0).grid(row=0, column=2, rowspan=50, padx=10)
+        self.title_label = tk.Label(self.root, text="UVSim", bg=self.primary_color, font=("Helvetica", 30))
+        self.title_label.place(rely=1.0, relx=0, x=10, y=-5, anchor="sw")
+        
+        self.divider = tk.Canvas(self.root, width=3, height=900, bg=self.primary_color, bd=0, highlightthickness=0)
+        self.divider.grid(row=0, column=2, rowspan=50, padx=10)
 
-        # --- System Messages (frame with label + scrolling log) ---
-        log_frame = tk.Frame(self.root, bg="#6F7681", bd=0, highlightthickness=0)
-        log_frame.place(x=200, y=25)
+        # --- System Messages ---
+        self.log_frame = tk.Frame(self.root, bg=self.primary_color, bd=0, highlightthickness=0)
+        self.log_frame.place(x=200, y=25)
 
-        log_label = tk.Label(log_frame, text="System Messages", bg="#6F7681", font=("Helvetica", 18), anchor="w")
-        log_label.pack(fill="x", padx=0, pady=(0,4))
+        self.log_label = tk.Label(self.log_frame, text="System Messages", bg=self.primary_color, font=("Helvetica", 18), anchor="w")
+        self.log_label.pack(fill="x", padx=0, pady=(0,4))
 
-        # Text widget for the log (disabled for direct editing)
-        self.system_output = tk.Text(log_frame, height=10, width=50, state="disabled", wrap="word", font=("Helvetica", 12), bd=1, relief="solid")
+        # -Text widget for the log (disabled for direct editing)
+        self.system_output = tk.Text(self.log_frame, height=10, width=50, state="disabled", wrap="word", font=("Helvetica", 12), bd=1, relief="solid")
         self.system_output.pack(fill="both", expand=True)
         self.systemState = self.system_output
 
         # --- System Variables ---
-        tk.Label(self.root, text="System Variables", bg="#6F7681", font=("Helvetica", 18)).place(x=200, y=260)
+        self.vars_label = tk.Label(self.root, text="System Variables", bg=self.primary_color, font=("Helvetica", 18))
+        self.vars_label.place(x=200, y=260)
+        
         self.varsState = tk.Label(self.root, text="Accumulator: +0000\nProgram Counter: 00", bg="white", font=("Helvetica", 12), width=50, height=3, anchor="nw")
         self.varsState.place(x=200, y=295)
 
-        tk.Label(self.root, text="User Console", bg="#6F7681", font=("Helvetica", 18)).place(x=200, y=370)
+        # --- User Console ---
+        self.console_label = tk.Label(self.root, text="User Console", bg=self.primary_color, font=("Helvetica", 18))
+        self.console_label.place(x=200, y=370)
+        
         self.userInput = tk.Entry(self.root, width=45, font=("Courier New", 12), state="disabled")
         self.userInput.place(x=200, y=405)
         self.userInput.bind("<Return>", self._submit_input)
-        self.userQueue = []  # store submitted inputs
+        self.userQueue = []
 
-        tk.Label(self.root, text="Memory", bg="#6F7681", font=("Helvetica", 18)).place(x=725, y=25)
+        # --- Memory ---
+        self.memory_label = tk.Label(self.root, text="Memory", bg=self.primary_color, font=("Helvetica", 18))
+        self.memory_label.place(x=725, y=25)
 
-        # --- Memory Treeview ---
         frame = tk.Frame(self.root, bg="white")
         frame.place(x=725, y=60, width=500, height=560)
 
@@ -74,15 +99,15 @@ class Window:
         self.memoryState.column("Location", width=80, anchor="center", stretch=False)
         self.memoryState.column("Item", width=400, anchor="w", stretch=False)
 
-        # set up empty table with memory locations 00-99
         for i in range(100):
             tag = "even" if i % 2 == 0 else "odd"
             self.memoryState.insert("", "end", values=(f"{i:02d}", "+0000"), tags=(tag,))
         self.memoryState.tag_configure("even", background="#f7f7f7")
         self.memoryState.tag_configure("odd", background="#f0f0f0")
+        
         # tag for invalid entries
         self.memoryState.tag_configure("invalid", background="#ffdddd")
-
+                               
         # allow double-click edit
         self.memoryState.bind('<Double-1>', self.on_double_click)
         # right-click context menu
@@ -96,7 +121,6 @@ class Window:
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Delete", command=self.delete_instruction)
 
-        # set up system variables
         self.initial_memory = {}
         self.run_thread = None
         self.file_valid = False
@@ -105,28 +129,232 @@ class Window:
         # wait for 'ctrl+s'
         self.root.bind('<Control-s>', self.save_file)
 
-        # keep GUI/Window running unless closed
+        # Apply initial theme
+        self.apply_theme()
         self.root.mainloop()
+                                       
+    # --- Color Theme Management ---
+    
+    def load_colors(self):
+        """Load colors from config.json or return defaults."""
+        if os.path.exists('config.json'):
+            try:
+                with open('config.json', 'r') as f:
+                    config = json.load(f)
+                    return config.get('primary_color', '#4C721D'), config.get('secondary_color', '#FFFFFF')
+            except:
+                pass
+        return '#4C721D', '#FFFFFF'  # UVU defaults
+    
+    def save_colors(self):
+        """Save current colors to config.json."""
+        try:
+            with open('config.json', 'w') as f:
+                json.dump({
+                    'primary_color': self.primary_color,
+                    'secondary_color': self.secondary_color
+                }, f, indent=2)
+        except:
+            pass
+    
+    def get_text_color(self, bg_color):
+        """Code obtained using Claude AI. Return 'black' or 'white' based on background brightness."""
+        hex_color = bg_color.lstrip('#')
+        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+        brightness = (r * 299 + g * 587 + b * 114) / 1000
+        return 'black' if brightness > 128 else 'white'
+    
+    def apply_theme(self):
+        """Apply current theme colors to all widgets."""
+        primary_text = self.get_text_color(self.primary_color)
+        secondary_text = self.get_text_color(self.secondary_color)
+        
+        # Backgrounds
+        self.root.configure(bg=self.primary_color)
+        self.log_frame.config(bg=self.primary_color)
+        self.divider.config(bg=self.primary_color)
+        
+        # Labels
+        self.title_label.config(bg=self.primary_color, fg=primary_text)
+        self.help_label.config(bg=self.primary_color, fg=primary_text)
+        self.log_label.config(bg=self.primary_color, fg=primary_text)
+        self.vars_label.config(bg=self.primary_color, fg=primary_text)
+        self.console_label.config(bg=self.primary_color, fg=primary_text)
+        self.memory_label.config(bg=self.primary_color, fg=primary_text)
+        
+        # Buttons
+        for btn in [self.load_btn, self.run_btn, self.reset_btn, self.theme_btn, self.help_btn1, self.help_btn2]: btn.config(bg=self.secondary_color, fg=secondary_text)
+    
+    def open_theme_settings(self):
+        """Open simple color picker dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Theme Settings")
+        dialog.geometry("400x250")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text="Theme Settings", font=("Helvetica", 16, "bold")).pack(pady=20)
+        
+        # Primary Color
+        frame1 = tk.Frame(dialog) 
+        frame1.pack(pady=10)
+        tk.Label(frame1, text="Primary Color:", font=("Helvetica", 12)).pack(side=tk.LEFT, padx=10)
+        primary_box = tk.Label(frame1, text="      ", bg=self.primary_color, relief=tk.RAISED, width=10, height=2)
+        primary_box.pack(side=tk.LEFT, padx=5)
+        
+        def choose_primary():
+            color = colorchooser.askcolor(initialcolor=self.primary_color, title="Choose Primary Color")
+            if color[1]:
+                self.primary_color = color[1]
+                primary_box.config(bg=self.primary_color)
+                self.apply_theme()
+        
+        tk.Button(frame1, text="Choose", command=choose_primary).pack(side=tk.LEFT, padx=5)
+        
+        # Secondary Color
+        frame2 = tk.Frame(dialog)
+        frame2.pack(pady=10)
+        tk.Label(frame2, text="Secondary Color:", font=("Helvetica", 12)).pack(side=tk.LEFT, padx=10)
+        secondary_box = tk.Label(frame2, text="      ", bg=self.secondary_color, relief=tk.RAISED, width=10, height=2)
+        secondary_box.pack(side=tk.LEFT, padx=5)
+        
+        def choose_secondary():
+            color = colorchooser.askcolor(initialcolor=self.secondary_color, title="Choose Secondary Color")
+            if color[1]:
+                self.secondary_color = color[1]
+                secondary_box.config(bg=self.secondary_color)
+                self.apply_theme()
+        
+        tk.Button(frame2, text="Choose", command=choose_secondary).pack(side=tk.LEFT, padx=5)
+        
+        # Buttons
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(pady=20)
+        
+        def save_and_close():
+            self.save_colors()
+            messagebox.showinfo("Success", "Theme saved!", parent=dialog)
+            dialog.destroy()
+        
+        def reset_defaults():
+            self.primary_color = '#4C721D'
+            self.secondary_color = '#FFFFFF'
+            primary_box.config(bg=self.primary_color)
+            secondary_box.config(bg=self.secondary_color)
+            self.apply_theme()
+        
+        tk.Button(btn_frame, text="Save", command=save_and_close, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Cancel", command=dialog.destroy, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Reset to UVU", command=reset_defaults, width=12).pack(side=tk.LEFT, padx=5)
+        
+        # Center dialog
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+    
+    def show_program_instructions(self):
+        """Display help dialog."""
+        instructions = """To use UVSim:
+        1. Load a Program:
+        - Click "Load File" and select a .txt program file
+        - Valid format: +1234, -0456, or 1234
 
+        2. Run the Program:
+        - Click "Run Program" to begin execution
+        - Watch System Messages for output
 
-    # --- Help Dialog ---
-    def show_program_help(self):
-        help_text = (
-            "To use UVSim, first click Load File and select a .txt program file. Then press Run Program to begin execution. Input is indicated by the ability to type in the User Console box, when input is indicated type a signed or unsigned four-digit number (for example: +0045, -1234, or 0007) into the User Console and press Enter. Program output and messages will appear in the System Messages panel, while the Accumulator and Program Counter update automatically as the program runs. You can click Reset Program at any time to clear memory and restart, or Exit Program to close UVSim."
-        )
-        messagebox.showinfo("Program Instructions", help_text)
+        3. Provide Input:
+        - When prompted, type a 4-digit number
+        - Examples: +0045, -1234, or 0007
+        - Press Enter to submit
 
-    def show_edit_help(self):
-        help_text = (
-            "Memory Table Editing Guide:\n\n"
-            "• Double-click a memory cell to edit its value.\n"
-            "• Right-click a row for Cut / Copy / Paste / Delete options.\n"
-            "• Invalid entries are highlighted in red and listed in System Messages.\n"
-            "• Selected memory cell is highlighted in white.\n"
-            "• You can load, inspect, and modify memory before running the program.\n"
-            "• Save your file by typing 'CTRL+S'"
-        )
-        messagebox.showinfo("How to Edit", help_text)
+        4. Monitor Execution:
+        - System Variables shows Accumulator and Program Counter
+        - Memory table shows all 100 memory locations
+
+        5. Other Options:
+        - Reset Program: Clear memory and restart
+        - Theme Settings: Customize colors
+        
+        BasicML Instruction Format:
+        - 4-digit signed numbers
+        - First 2 digits: opcode
+        - Last 2 digits: memory address
+        - Example: +1007 = READ into location 07"""
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("UVSim Help")
+        dialog.geometry("550x450")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text="UVSim Instructions", font=("Helvetica", 18, "bold")).pack(pady=15)
+        
+        frame = tk.Frame(dialog)
+        frame.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
+        
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11), 
+                             yscrollcommand=scrollbar.set, padx=10, pady=10)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
+        
+        text_widget.insert("1.0", instructions)
+        text_widget.config(state="disabled")
+        
+        tk.Button(dialog, text="Close", command=dialog.destroy, width=15, 
+                 font=("Helvetica", 11)).pack(pady=15)
+        
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+
+    def show_edit_instructions(self):
+        """Display help dialog."""
+        instructions = """Memory Table Editing Guide:
+• Double-click a memory cell to edit its value.
+• Right-click a row for Cut / Copy / Paste / Delete options.
+• Invalid entries are highlighted in red and listed in System Messages.
+• Selected memory cell is highlighted in white.
+• You can load, inspect, and modify memory before running the program.
+• Save your file by typing 'CTRL+S'"""
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Edit Help")
+        dialog.geometry("550x250")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text="Edit Instructions", font=("Helvetica", 18, "bold")).pack(pady=15)
+        
+        frame = tk.Frame(dialog)
+        frame.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
+        
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11), 
+                             yscrollcommand=scrollbar.set, padx=10, pady=10)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
+        
+        text_widget.insert("1.0", instructions)
+        text_widget.config(state="disabled")
+        
+        tk.Button(dialog, text="Close", command=dialog.destroy, width=15, 
+                 font=("Helvetica", 11)).pack(pady=15)
+        
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
 
     # --- File / Program execution ---
 
@@ -198,7 +426,8 @@ class Window:
             else:
                 self.write_system(f"File loaded successfully: {line_count} instructions")
                 self.file_valid = True
-
+                self.enable_memory_editing()
+                
         except FileNotFoundError:
             messagebox.showerror("Load File Error", "File not found")
             self.write_system("ERROR: File not found")
@@ -212,6 +441,124 @@ class Window:
             self.write_system(f"ERROR: {str(e)}")
             self.file_valid = False
 
+    # --- Memory Editing Features ---
+
+    def enable_memory_editing(self):
+        """Allow user to double-click cells and edit the memory items."""
+        self.memoryState.bind("<Double-1>", self._on_double_click_edit)
+        self.root.bind("<Control-c>", self._copy_selection)
+        self.root.bind("<Control-x>", self._cut_selection)
+        self.root.bind("<Control-v>", self._paste_selection)
+        self.root.bind("<Delete>", self._delete_selection)
+
+        # Context menu for right-click (add/delete rows)
+        self.memory_menu = tk.Menu(self.root, tearoff=0)
+        self.memory_menu.add_command(label="Add Entry", command=self._add_entry)
+        self.memory_menu.add_command(label="Delete Entry", command=self._delete_selection)
+        self.memory_menu.add_separator()
+        self.memory_menu.add_command(label="Cut", command=self._cut_selection)
+        self.memory_menu.add_command(label="Copy", command=self._copy_selection)
+        self.memory_menu.add_command(label="Paste", command=self._paste_selection)
+        self.memoryState.bind("<Button-3>", self._show_context_menu)
+
+        self.write_system("Memory editing enabled. Double-click to edit or right-click for options.")
+
+    def _on_double_click_edit(self, event):
+        """Handle double-click cell editing for memory values."""
+        region = self.memoryState.identify("region", event.x, event.y)
+        if region != "cell":
+            return
+        item = self.memoryState.identify_row(event.y)
+        column = self.memoryState.identify_column(event.x)
+
+        if column == "#2":  # only allow editing memory value
+            x, y, width, height = self.memoryState.bbox(item, column)
+            value = self.memoryState.item(item, "values")[1]
+
+            edit_box = tk.Entry(self.memoryState, width=10, font=("Courier New", 12))
+            edit_box.place(x=x, y=y, width=width, height=height)
+            edit_box.insert(0, value)
+            edit_box.focus()
+
+            def save_edit(event=None):
+                new_val = edit_box.get().strip()
+                index = int(self.memoryState.item(item, "values")[0])
+                if not self._validate_instruction(new_val):
+                    messagebox.showerror("Invalid Entry", f"'{new_val}' is not a valid instruction format.")
+                else:
+                    self.memoryState.item(item, values=(f"{index:02d}", new_val))
+                    core._programMemory[f"{index:02d}"] = new_val
+                edit_box.destroy()
+
+            edit_box.bind("<Return>", save_edit)
+            edit_box.bind("<FocusOut>", lambda e: edit_box.destroy())
+
+    def _validate_instruction(self, value):
+        """Check if instruction is valid format."""
+        if not value:
+            return False
+        try:
+            core.parse(value)
+            return True
+        except Exception:
+            return False
+
+    def _copy_selection(self, event=None):
+        """Copy selected rows to clipboard."""
+        selection = [self.memoryState.item(i, "values")[1] for i in self.memoryState.selection()]
+        if selection:
+            self.root.clipboard_clear()
+            self.root.clipboard_append("\n".join(selection))
+
+    def _cut_selection(self, event=None):
+        """Cut selected rows (copy then clear)."""
+        self._copy_selection()
+        for i in self.memoryState.selection():
+            index = int(self.memoryState.item(i, "values")[0])
+            self.memoryState.item(i, values=(f"{index:02d}", "+0000"))
+            core._programMemory[f"{index:02d}"] = "+0000"
+
+    def _paste_selection(self, event=None):
+        """Paste clipboard contents starting from first selected row."""
+        if not self.memoryState.selection():
+            return
+        start_index = int(self.memoryState.item(self.memoryState.selection()[0], "values")[0])
+        pasted = self.root.clipboard_get().splitlines()
+
+        for offset, line in enumerate(pasted):
+            idx = start_index + offset
+            if idx >= 100:
+                messagebox.showwarning("Paste Limit", "Reached max memory size (100).")
+                break
+            if self._validate_instruction(line):
+                self.memoryState.item(self.memoryState.get_children()[idx], values=(f"{idx:02d}", line))
+                core._programMemory[f"{idx:02d}"] = line
+
+    def _delete_selection(self, event=None):
+        """Delete (clear) selected memory rows."""
+        for i in self.memoryState.selection():
+            index = int(self.memoryState.item(i, "values")[0])
+            self.memoryState.item(i, values=(f"{index:02d}", "+0000"))
+            core._programMemory[f"{index:02d}"] = "+0000"
+
+    def _add_entry(self):
+        """Add a blank new memory line if space allows."""
+        current_count = len(self.memoryState.get_children())
+        if current_count >= 100:
+            messagebox.showwarning("Memory Full", "Maximum of 100 entries allowed.")
+            return
+        new_index = current_count
+        self.memoryState.insert("", "end", values=(f"{new_index:02d}", "+0000"))
+        core._programMemory[f"{new_index:02d}"] = "+0000"
+        self.write_system(f"Added new memory entry at {new_index:02d}.")
+
+    def _show_context_menu(self, event):
+        """Display right-click context menu."""
+        try:
+            self.memory_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.memory_menu.grab_release()
+            
     def run_program(self):
         """Validate current editor memory and then run in a thread if valid."""
         # Re-validate current memory content before running
