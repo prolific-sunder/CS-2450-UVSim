@@ -1,56 +1,90 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, colorchooser
 import threading
 import time
+import json
+import os
 import main as core
 
 class Window:
     def __init__(self, name="UVsim", size="1280x720"):
+        # Load colors from config
+        self.primary_color, self.secondary_color = self.load_colors()
+        
         # --- Main Window ---
         self.root = tk.Tk()
         self.root.title(name)
-        self.root.configure(background="#6F7681")
+        self.root.configure(background=self.primary_color)
         self.root.geometry(size)
 
         # --- Left Side Buttons ---
-        tk.Button(self.root, text="Load File", width=12, height=4, command=self.load_file).grid(row=0, column=0, padx=20, pady=20)
-        tk.Button(self.root, text="Run Program", width=12, height=4, command=self.run_program).grid(row=1, column=0, padx=20, pady=20)
-        tk.Button(self.root, text="Reset Program", width=12, height=4, command=self.reset_memory).grid(row=2, column=0, padx=20, pady=20)
-        tk.Button(self.root, text="Exit Program", width=12, height=4, command=self.root.destroy).grid(row=3, column=0, padx=20, pady=20)
+        self.load_btn = tk.Button(self.root, text="Load File", width=12, height=4, command=self.load_file)
+        self.load_btn.grid(row=0, column=0, padx=20, pady=20)
+        
+        self.run_btn = tk.Button(self.root, text="Run Program", width=12, height=4, command=self.run_program)
+        self.run_btn.grid(row=1, column=0, padx=20, pady=20)
+        
+        self.reset_btn = tk.Button(self.root, text="Reset Program", width=12, height=4, command=self.reset_memory)
+        self.reset_btn.grid(row=2, column=0, padx=20, pady=20)
+        
+        self.theme_btn = tk.Button(self.root, text="Theme Settings", width=12, height=4, command=self.open_theme_settings)
+        self.theme_btn.grid(row=3, column=0, padx=20, pady=20)
+        
+        self.help_btn = tk.Button(self.root, text="Help/Instructions", width=12, height=4, command=self.show_instructions)
+        self.help_btn.grid(row=4, column=0, padx=20, pady=20)
 
-        tk.Label(self.root, text="UVSim", bg="#6F7681", font=("Helvetica", 30)).place(rely=1.0, relx=0, x=10, y=-5, anchor="sw")
-        tk.Canvas(self.root, width=3, height=900, bg="#6F7681", bd=0, highlightthickness=0).grid(row=0, column=2, rowspan=50, padx=10)
+        self.title_label = tk.Label(self.root, text="UVSim", bg=self.primary_color, font=("Helvetica", 30))
+        self.title_label.place(rely=1.0, relx=0, x=10, y=-5, anchor="sw")
+        
+        self.divider = tk.Canvas(self.root, width=3, height=900, bg=self.primary_color, bd=0, highlightthickness=0)
+        self.divider.grid(row=0, column=2, rowspan=50, padx=10)
 
-        # --- System Messages (frame with label + scrolling log) ---
-        log_frame = tk.Frame(self.root, bg="#6F7681", bd=0, highlightthickness=0)
-        log_frame.place(x=200, y=25)
+        # --- System Messages ---
+        self.log_frame = tk.Frame(self.root, bg=self.primary_color, bd=0, highlightthickness=0)
+        self.log_frame.place(x=200, y=25)
 
-        log_label = tk.Label(log_frame, text="System Messages", bg="#6F7681", font=("Helvetica", 18), anchor="w")
-        log_label.pack(fill="x", padx=0, pady=(0,4))
+        self.log_label = tk.Label(self.log_frame, text="System Messages", bg=self.primary_color, font=("Helvetica", 18), anchor="w")
+        self.log_label.pack(fill="x", padx=0, pady=(0,4))
 
-        # Text widget for the log (disabled for direct editing)
-        self.system_output = tk.Text(log_frame, height=10, width=50, state="disabled", wrap="word", font=("Helvetica", 12), bd=1, relief="solid")
+        # -Text widget for the log (disabled for direct editing)
+        self.system_output = tk.Text(self.log_frame, height=10, width=50, state="disabled", wrap="word", font=("Helvetica", 12), bd=1, relief="solid")
         self.system_output.pack(fill="both", expand=True)
         self.systemState = self.system_output
 
         # --- System Aspects ---
-        tk.Label(self.root, text="System Variables", bg="#6F7681", font=("Helvetica", 18)).place(x=200, y=260)
+        self.vars_label = tk.Label(self.root, text="System Variables", bg=self.primary_color, font=("Helvetica", 18))
+        self.vars_label.place(x=200, y=260)
+        
         self.varsState = tk.Label(self.root, text="Accumulator: +0000\nProgram Counter: 00", bg="white", font=("Helvetica", 12), width=50, height=3, anchor="nw")
         self.varsState.place(x=200, y=295)
 
-        tk.Label(self.root, text="Program Instructions", bg="#6F7681", font=("Helvetica", 18)).place(x=200, y=370)
-        self.instructState = tk.Label(self.root, text="To use UVSim, first click Load File and select a .txt program file. Then press Run Program to begin execution. Input is indicated by the ability to type in the User Console box, when input is indicated type a signed or unsigned four-digit number (for example: +0045, -1234, or 0007) into the User Console and press Enter. Program output and messages will appear in the System Messages panel, while the Accumulator and Program Counter update automatically as the program runs. You can click Reset Program at any time to clear memory and restart, or Exit Program to close UVSim.", bg="white", font=("Helvetica", 10), width=55, height=9, anchor="nw", justify="left", wraplength=405)
-        self.instructState.place(x=200, y=405)
+        # --- Quick Reference ---
+        self.reference_label = tk.Label(self.root, text="Quick Opcode Reference", bg=self.primary_color, font=("Helvetica", 18))
+        self.reference_label.place(x=200, y=370)
+        
+        reference_text = """I/O: 10=READ 11=WRITE  |  Memory: 20=LOAD 21=STORE
+Arithmetic: 30=ADD 31=SUB 32=DIV 33=MUL
+Control: 40=BRANCH 41=BRANCHNEG 42=BRANCHZERO 43=HALT
 
-        tk.Label(self.root, text="User Console", bg="#6F7681", font=("Helvetica", 18)).place(x=200, y=565)
+Format: [OP][XX] where OP=opcode, XX=memory location
+Example: +1007 = READ into location 07"""
+        
+        self.reference_display = tk.Label(self.root, text=reference_text, bg="white", font=("Courier New", 10), width=55, height=6, anchor="nw", justify="left", relief="solid", bd=1, padx=5, pady=5)
+        self.reference_display.place(x=200, y=405)
+
+        # --- User Console ---
+        self.console_label = tk.Label(self.root, text="User Console", bg=self.primary_color, font=("Helvetica", 18))
+        self.console_label.place(x=200, y=520)
+        
         self.userInput = tk.Entry(self.root, width=45, font=("Courier New", 12), state="disabled")
-        self.userInput.place(x=200, y=600)
+        self.userInput.place(x=200, y=555)
         self.userInput.bind("<Return>", self._submit_input)
-        self.userQueue = []  # store submitted inputs
+        self.userQueue = []
 
-        tk.Label(self.root, text="Memory", bg="#6F7681", font=("Helvetica", 18)).place(x=725, y=25)
+        # --- Memory ---
+        self.memory_label = tk.Label(self.root, text="Memory", bg=self.primary_color, font=("Helvetica", 18))
+        self.memory_label.place(x=725, y=25)
 
-        # --- Memory Treeview ---
         frame = tk.Frame(self.root, bg="white")
         frame.place(x=725, y=60, width=500, height=560)
 
@@ -70,20 +104,201 @@ class Window:
         self.memoryState.column("Location", width=80, anchor="center", stretch=False)
         self.memoryState.column("Item", width=400, anchor="w", stretch=False)
 
-        # set up empty table with memory locations 00-99
         for i in range(100):
             tag = "even" if i % 2 == 0 else "odd"
             self.memoryState.insert("", "end", values=(f"{i:02d}", "+0000"), tags=(tag,))
         self.memoryState.tag_configure("even", background="white")
         self.memoryState.tag_configure("odd", background="#f0f0f0")
 
-        # set up system variables
         self.initial_memory = {}
         self.run_thread = None
         self.file_valid = False
 
-        # keep GUI/Window running unless closed
+        # Apply initial theme
+        self.apply_theme()
         self.root.mainloop()
+
+    # --- Color Theme Management ---
+    
+    def load_colors(self):
+        """Load colors from config.json or return defaults."""
+        if os.path.exists('config.json'):
+            try:
+                with open('config.json', 'r') as f:
+                    config = json.load(f)
+                    return config.get('primary_color', '#4C721D'), config.get('secondary_color', '#FFFFFF')
+            except:
+                pass
+        return '#4C721D', '#FFFFFF'  # UVU defaults
+    
+    def save_colors(self):
+        """Save current colors to config.json."""
+        try:
+            with open('config.json', 'w') as f:
+                json.dump({
+                    'primary_color': self.primary_color,
+                    'secondary_color': self.secondary_color
+                }, f, indent=2)
+        except:
+            pass
+    
+    def get_text_color(self, bg_color):
+        """Code obtained using Claude AI. Return 'black' or 'white' based on background brightness."""
+        hex_color = bg_color.lstrip('#')
+        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+        brightness = (r * 299 + g * 587 + b * 114) / 1000
+        return 'black' if brightness > 128 else 'white'
+    
+    def apply_theme(self):
+        """Apply current theme colors to all widgets."""
+        primary_text = self.get_text_color(self.primary_color)
+        secondary_text = self.get_text_color(self.secondary_color)
+        
+        # Backgrounds
+        self.root.configure(bg=self.primary_color)
+        self.log_frame.config(bg=self.primary_color)
+        self.divider.config(bg=self.primary_color)
+        
+        # Labels
+        self.title_label.config(bg=self.primary_color, fg=primary_text)
+        self.log_label.config(bg=self.primary_color, fg=primary_text)
+        self.vars_label.config(bg=self.primary_color, fg=primary_text)
+        self.reference_label.config(bg=self.primary_color, fg=primary_text)
+        self.console_label.config(bg=self.primary_color, fg=primary_text)
+        self.memory_label.config(bg=self.primary_color, fg=primary_text)
+        
+        # Buttons
+        for btn in [self.load_btn, self.run_btn, self.reset_btn, self.theme_btn, self.help_btn]: btn.config(bg=self.secondary_color, fg=secondary_text)
+    
+    def open_theme_settings(self):
+        """Open simple color picker dialog."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Theme Settings")
+        dialog.geometry("400x250")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text="Theme Settings", font=("Helvetica", 16, "bold")).pack(pady=20)
+        
+        # Primary Color
+        frame1 = tk.Frame(dialog) 
+        frame1.pack(pady=10)
+        tk.Label(frame1, text="Primary Color:", font=("Helvetica", 12)).pack(side=tk.LEFT, padx=10)
+        primary_box = tk.Label(frame1, text="      ", bg=self.primary_color, relief=tk.RAISED, width=10, height=2)
+        primary_box.pack(side=tk.LEFT, padx=5)
+        
+        def choose_primary():
+            color = colorchooser.askcolor(initialcolor=self.primary_color, title="Choose Primary Color")
+            if color[1]:
+                self.primary_color = color[1]
+                primary_box.config(bg=self.primary_color)
+                self.apply_theme()
+        
+        tk.Button(frame1, text="Choose", command=choose_primary).pack(side=tk.LEFT, padx=5)
+        
+        # Secondary Color
+        frame2 = tk.Frame(dialog)
+        frame2.pack(pady=10)
+        tk.Label(frame2, text="Secondary Color:", font=("Helvetica", 12)).pack(side=tk.LEFT, padx=10)
+        secondary_box = tk.Label(frame2, text="      ", bg=self.secondary_color, relief=tk.RAISED, width=10, height=2)
+        secondary_box.pack(side=tk.LEFT, padx=5)
+        
+        def choose_secondary():
+            color = colorchooser.askcolor(initialcolor=self.secondary_color, title="Choose Secondary Color")
+            if color[1]:
+                self.secondary_color = color[1]
+                secondary_box.config(bg=self.secondary_color)
+                self.apply_theme()
+        
+        tk.Button(frame2, text="Choose", command=choose_secondary).pack(side=tk.LEFT, padx=5)
+        
+        # Buttons
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(pady=20)
+        
+        def save_and_close():
+            self.save_colors()
+            messagebox.showinfo("Success", "Theme saved!", parent=dialog)
+            dialog.destroy()
+        
+        def reset_defaults():
+            self.primary_color = '#4C721D'
+            self.secondary_color = '#FFFFFF'
+            primary_box.config(bg=self.primary_color)
+            secondary_box.config(bg=self.secondary_color)
+            self.apply_theme()
+        
+        tk.Button(btn_frame, text="Save", command=save_and_close, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Cancel", command=dialog.destroy, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Reset to UVU", command=reset_defaults, width=12).pack(side=tk.LEFT, padx=5)
+        
+        # Center dialog
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+    
+    def show_instructions(self):
+        """Display help dialog."""
+        instructions = """To use UVSim:
+        1. Load a Program:
+        - Click "Load File" and select a .txt program file
+        - Valid format: +1234, -0456, or 1234
+
+        2. Run the Program:
+        - Click "Run Program" to begin execution
+        - Watch System Messages for output
+
+        3. Provide Input:
+        - When prompted, type a 4-digit number
+        - Examples: +0045, -1234, or 0007
+        - Press Enter to submit
+
+        4. Monitor Execution:
+        - System Variables shows Accumulator and Program Counter
+        - Memory table shows all 100 memory locations
+
+        5. Other Options:
+        - Reset Program: Clear memory and restart
+        - Theme Settings: Customize colors
+        
+        BasicML Instruction Format:
+        - 4-digit signed numbers
+        - First 2 digits: opcode
+        - Last 2 digits: memory address
+        - Example: +1007 = READ into location 07"""
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("UVSim Help")
+        dialog.geometry("550x450")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text="UVSim Instructions", font=("Helvetica", 18, "bold")).pack(pady=15)
+        
+        frame = tk.Frame(dialog)
+        frame.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
+        
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11), 
+                             yscrollcommand=scrollbar.set, padx=10, pady=10)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
+        
+        text_widget.insert("1.0", instructions)
+        text_widget.config(state="disabled")
+        
+        tk.Button(dialog, text="Close", command=dialog.destroy, width=15, 
+                 font=("Helvetica", 11)).pack(pady=15)
+        
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
 
     # --- File / Program execution ---
 
