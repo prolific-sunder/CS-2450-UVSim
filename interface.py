@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, colorchooser
+from tkinter import ttk, filedialog, messagebox, simpledialog, colorchooser
 import threading
 import time
 import json
@@ -17,6 +17,10 @@ class Window:
         self.root.configure(background=self.primary_color)
         self.root.geometry(size)
 
+        # Clipboard for cut/copy/paste (list of strings)
+        self.clipboard = []
+
+        # --- Left Side Buttons ---
         # --- Left Side Buttons ---
         self.load_btn = tk.Button(self.root, text="Load File", width=12, height=4, command=self.load_file)
         self.load_btn.grid(row=0, column=0, padx=20, pady=20)
@@ -30,8 +34,12 @@ class Window:
         self.theme_btn = tk.Button(self.root, text="Theme Settings", width=12, height=4, command=self.open_theme_settings)
         self.theme_btn.grid(row=3, column=0, padx=20, pady=20)
         
-        self.help_btn = tk.Button(self.root, text="Help/Instructions", width=12, height=4, command=self.show_instructions)
-        self.help_btn.grid(row=4, column=0, padx=20, pady=20)
+        self.help_label = tk.Label(self.root, text="Program Help", bg=self.primary_color, font=("Helvetica", 12))
+        self.help_label.grid(row=4, column=0, padx=20, pady=6)
+        self.help_btn1 = tk.Button(self.root, text="Program Use", width=12, command=self.show_program_instructions)
+        self.help_btn1.grid(row=5, column=0, padx=20, pady=6)
+        self.help_btn2 = tk.Button(self.root, text="How to Edit", width=12, command=self.show_edit_instructions)
+        self.help_btn2.grid(row=6, column=0, padx=20, pady=6)
 
         self.title_label = tk.Label(self.root, text="UVSim", bg=self.primary_color, font=("Helvetica", 30))
         self.title_label.place(rely=1.0, relx=0, x=10, y=-5, anchor="sw")
@@ -51,33 +59,19 @@ class Window:
         self.system_output.pack(fill="both", expand=True)
         self.systemState = self.system_output
 
-        # --- System Aspects ---
+        # --- System Variables ---
         self.vars_label = tk.Label(self.root, text="System Variables", bg=self.primary_color, font=("Helvetica", 18))
         self.vars_label.place(x=200, y=260)
         
         self.varsState = tk.Label(self.root, text="Accumulator: +0000\nProgram Counter: 00", bg="white", font=("Helvetica", 12), width=50, height=3, anchor="nw")
         self.varsState.place(x=200, y=295)
 
-        # --- Quick Reference ---
-        self.reference_label = tk.Label(self.root, text="Quick Opcode Reference", bg=self.primary_color, font=("Helvetica", 18))
-        self.reference_label.place(x=200, y=370)
-        
-        reference_text = """I/O: 10=READ 11=WRITE  |  Memory: 20=LOAD 21=STORE
-Arithmetic: 30=ADD 31=SUB 32=DIV 33=MUL
-Control: 40=BRANCH 41=BRANCHNEG 42=BRANCHZERO 43=HALT
-
-Format: [OP][XX] where OP=opcode, XX=memory location
-Example: +1007 = READ into location 07"""
-        
-        self.reference_display = tk.Label(self.root, text=reference_text, bg="white", font=("Courier New", 10), width=55, height=6, anchor="nw", justify="left", relief="solid", bd=1, padx=5, pady=5)
-        self.reference_display.place(x=200, y=405)
-
         # --- User Console ---
         self.console_label = tk.Label(self.root, text="User Console", bg=self.primary_color, font=("Helvetica", 18))
-        self.console_label.place(x=200, y=520)
+        self.console_label.place(x=200, y=370)
         
         self.userInput = tk.Entry(self.root, width=45, font=("Courier New", 12), state="disabled")
-        self.userInput.place(x=200, y=555)
+        self.userInput.place(x=200, y=405)
         self.userInput.bind("<Return>", self._submit_input)
         self.userQueue = []
 
@@ -91,7 +85,8 @@ Example: +1007 = READ into location 07"""
         scrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL, width=18)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.memoryState = ttk.Treeview(frame, columns=("Location", "Item"), show="headings", yscrollcommand=scrollbar.set, selectmode="none", height=35)
+        # allow selection for editing/cut/copy/paste
+        self.memoryState = ttk.Treeview(frame, columns=("Location", "Item"), show="headings", yscrollcommand=scrollbar.set, selectmode="extended", height=35)
         self.memoryState.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.memoryState.yview)
 
@@ -107,17 +102,37 @@ Example: +1007 = READ into location 07"""
         for i in range(100):
             tag = "even" if i % 2 == 0 else "odd"
             self.memoryState.insert("", "end", values=(f"{i:02d}", "+0000"), tags=(tag,))
-        self.memoryState.tag_configure("even", background="white")
+        self.memoryState.tag_configure("even", background="#f7f7f7")
         self.memoryState.tag_configure("odd", background="#f0f0f0")
+        
+        # tag for invalid entries
+        self.memoryState.tag_configure("invalid", background="#ffdddd")
+                               
+        # allow double-click edit
+        self.memoryState.bind('<Double-1>', self.on_double_click)
+        # right-click context menu
+        self.memoryState.bind('<Button-3>', self.show_context_menu)
+
+        # context menu
+        self.context_menu = tk.Menu(self.root, tearoff=0)
+        self.context_menu.add_command(label="Cut", command=self.cut_selection)
+        self.context_menu.add_command(label="Copy", command=self.copy_selection)
+        self.context_menu.add_command(label="Paste", command=self.paste_at_selection)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Delete", command=self.delete_instruction)
 
         self.initial_memory = {}
         self.run_thread = None
         self.file_valid = False
+        self.current_filepath = None
+
+        # wait for 'ctrl+s'
+        self.root.bind('<Control-s>', self.save_file)
 
         # Apply initial theme
         self.apply_theme()
         self.root.mainloop()
-
+                                       
     # --- Color Theme Management ---
     
     def load_colors(self):
@@ -161,14 +176,14 @@ Example: +1007 = READ into location 07"""
         
         # Labels
         self.title_label.config(bg=self.primary_color, fg=primary_text)
+        self.help_label.config(bg=self.primary_color, fg=primary_text)
         self.log_label.config(bg=self.primary_color, fg=primary_text)
         self.vars_label.config(bg=self.primary_color, fg=primary_text)
-        self.reference_label.config(bg=self.primary_color, fg=primary_text)
         self.console_label.config(bg=self.primary_color, fg=primary_text)
         self.memory_label.config(bg=self.primary_color, fg=primary_text)
         
         # Buttons
-        for btn in [self.load_btn, self.run_btn, self.reset_btn, self.theme_btn, self.help_btn]: btn.config(bg=self.secondary_color, fg=secondary_text)
+        for btn in [self.load_btn, self.run_btn, self.reset_btn, self.theme_btn, self.help_btn1, self.help_btn2]: btn.config(bg=self.secondary_color, fg=secondary_text)
     
     def open_theme_settings(self):
         """Open simple color picker dialog."""
@@ -239,7 +254,7 @@ Example: +1007 = READ into location 07"""
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
         dialog.geometry(f"+{x}+{y}")
     
-    def show_instructions(self):
+    def show_program_instructions(self):
         """Display help dialog."""
         instructions = """To use UVSim:
         1. Load a Program:
@@ -300,6 +315,47 @@ Example: +1007 = READ into location 07"""
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
         dialog.geometry(f"+{x}+{y}")
 
+    def show_edit_instructions(self):
+        """Display help dialog."""
+        instructions = """Memory Table Editing Guide:
+• Double-click a memory cell to edit its value.
+• Right-click a row for Cut / Copy / Paste / Delete options.
+• Invalid entries are highlighted in red and listed in System Messages.
+• Selected memory cell is highlighted in white.
+• You can load, inspect, and modify memory before running the program.
+• Save your file by typing 'CTRL+S'"""
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Edit Help")
+        dialog.geometry("550x250")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text="Edit Instructions", font=("Helvetica", 18, "bold")).pack(pady=15)
+        
+        frame = tk.Frame(dialog)
+        frame.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
+        
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11), 
+                             yscrollcommand=scrollbar.set, padx=10, pady=10)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
+        
+        text_widget.insert("1.0", instructions)
+        text_widget.config(state="disabled")
+        
+        tk.Button(dialog, text="Close", command=dialog.destroy, width=15, 
+                 font=("Helvetica", 11)).pack(pady=15)
+        
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+
     # --- File / Program execution ---
 
     def load_file(self):
@@ -308,7 +364,7 @@ Example: +1007 = READ into location 07"""
             filepath = filedialog.askopenfilename(title="Select a Program File", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
             if not filepath:
                 return None
-            
+
             # Clear and initialize memory
             core._programMemory.clear()
             for i in range(100):
@@ -316,7 +372,7 @@ Example: +1007 = READ into location 07"""
 
             core._accumulator = "+0000" # Reset accumulator
             core._programCounter = 0 # Reset program counter
-            
+
             # Read and validate file
             errors = []
             line_count = 0
@@ -327,20 +383,20 @@ Example: +1007 = READ into location 07"""
                     if memory_index >= 100:
                         errors.append(f"Line {i+1}: File exceeds 100 lines")
                         break
-                    
+
                     line = line.strip()
-                    
+
                     # Skip empty lines and comments
                     if not line or line.startswith('#'):
                         continue
-                    
+
                     # Remove inline comments
                     if '#' in line:
                         line = line.split('#')[0].strip()
-                    
+
                     if not line:
                         continue
-                    
+
                     # Validate instruction
                     try:
                         core.parse(line)
@@ -348,18 +404,24 @@ Example: +1007 = READ into location 07"""
                         line_count += 1
                         memory_index += 1
                     except Exception as e:
+                        # keep the invalid instruction in memory so user can edit it
+                        core._programMemory[f"{memory_index:02d}"] = line
                         errors.append(f"Line {i+1}: {str(e)}")
-            
+                        memory_index += 1
+
             # Update display
             self.build_memory_table(core._programMemory, save_initial=True)
-            
+            self.current_filepath = filepath
+            self.file_valid = True
+            self.write_system(f"Loaded file: {filepath}")
+
             # Report results
             if errors:
-                error_msg = "File loaded with errors:\n\n" + "\n".join(errors[:10])
+                error_msg = "File loaded, but validation errors were found:\n\n" + "\n".join(errors[:10])
                 if len(errors) > 10:
                     error_msg += f"\n\n... and {len(errors) - 10} more errors"
-                messagebox.showerror("Load File - Validation Errors", error_msg)
-                self.write_system(f"ERROR: File has {len(errors)} validation error(s). Cannot run program.")
+                messagebox.showwarning("Load File - Validation Issues", error_msg)
+                self.write_system(f"WARNING: File has {len(errors)} validation issue(s). Edit memory before running.")
                 self.file_valid = False
             else:
                 self.write_system(f"File loaded successfully: {line_count} instructions")
@@ -498,12 +560,19 @@ Example: +1007 = READ into location 07"""
             self.memory_menu.grab_release()
             
     def run_program(self):
-        """Utilizes threading module and calls _run_program_thread"""
-        if not self.file_valid:
-            messagebox.showinfo("Run Program", "No valid program loaded. Please load a valid file first.")
-            self.write_system("ERROR: No valid program loaded. Cannot run.")
+        """Validate current editor memory and then run in a thread if valid."""
+        # Re-validate current memory content before running
+        errors = self.validate_memory_from_editor()
+        if errors:
+            err_msg = "Cannot run: memory contains validation errors:\n\n" + "\n".join(errors[:20])
+            if len(errors) > 20:
+                err_msg += f"\n\n... and {len(errors) - 20} more errors"
+            messagebox.showerror("Run Program - Validation Errors", err_msg)
+            self.write_system("ERROR: Memory validation failed. Fix errors before running.")
+            self.file_valid = False
             return
-        
+
+        # if already running
         if self.run_thread and self.run_thread.is_alive():
             messagebox.showinfo("Run Program", "Program is already running.")
             return
@@ -518,13 +587,13 @@ Example: +1007 = READ into location 07"""
         self.system_output.insert("end", message + "\n")
         self.system_output.see("end")  # auto-scroll to bottom
         self.system_output.config(state="disabled")
-    
+
     def clear_system(self):
         """Clear all messages from the system messages"""
         self.system_output.config(state="normal")
         self.system_output.delete("1.0", "end")  # delete everything
         self.system_output.config(state="disabled")
-    
+
     def build_memory_table(self, memory_dict, save_initial=False):
         """Full rebuild of memory table (used on file load or reset), parameters are memory_dict and save_initial (preset to False)"""
         if save_initial:
@@ -536,6 +605,12 @@ Example: +1007 = READ into location 07"""
             loc = f"{i:02d}"
             item = memory_dict.get(loc, "+0000")
             tag = "even" if i % 2 == 0 else "odd"
+            # if invalid instruction, mark invalid tag
+            try:
+                core.parse(item)
+            except Exception:
+                self.memoryState.insert("", "end", values=(loc, item), tags=("invalid",))
+                continue
             self.memoryState.insert("", "end", values=(loc, item), tags=(tag,))
 
     def update_memory(self, memory_dict, save_initial=False):
@@ -544,17 +619,24 @@ Example: +1007 = READ into location 07"""
             self.initial_memory = memory_dict.copy()
 
         # only update rows that changed
+        children = self.memoryState.get_children()
         for i in range(100):
             loc = f"{i:02d}"
             new_val = memory_dict.get(loc, "+0000")
 
             # get current value in Treeview
-            item_id = self.memoryState.get_children()[i]
+            item_id = children[i]
             old_val = self.memoryState.item(item_id, "values")[1]
 
             if new_val != old_val:  # update only if different
-                self.memoryState.item(item_id, values=(loc, new_val))
-    
+                # validate new value to set correct tag
+                try:
+                    core.parse(new_val)
+                    tag = "even" if i % 2 == 0 else "odd"
+                    self.memoryState.item(item_id, values=(loc, new_val), tags=(tag,))
+                except Exception:
+                    self.memoryState.item(item_id, values=(loc, new_val), tags=("invalid",))
+
     def update_vars(self):
         """Update the Accumulator / Program Counter label from core variables."""
 
@@ -579,7 +661,7 @@ Example: +1007 = READ into location 07"""
         self.clear_system()
 
     # --- Input handling ---
-    
+
     def _submit_input(self, event):
         value = self.userInput.get()
         if value:
@@ -608,6 +690,238 @@ Example: +1007 = READ into location 07"""
         self.userInput.delete(0, tk.END)
         self.userInput.config(state="disabled")  # lock input again
         return value
+    
+    # --- Editing helpers ---
+
+    def on_double_click(self, event):
+        """Edit the memory item on double-click."""
+        item_id = self.memoryState.identify_row(event.y)
+        col = self.memoryState.identify_column(event.x)
+        if not item_id or col != '#2':
+            return
+        loc, old_val = self.memoryState.item(item_id, 'values')
+        new_val = simpledialog.askstring("Edit Memory", f"Edit value at {loc}", initialvalue=str(old_val))
+        if new_val is None:
+            return
+        new_val = new_val.strip()
+        # accept empty to be treated as +0000
+        if new_val == '':
+            new_val = "+0000"
+        # update core memory and the treeview with validation
+        core._programMemory[loc] = new_val
+        try:
+            core.parse(new_val)
+            # valid
+            idx = int(loc)
+            tag = 'even' if idx % 2 == 0 else 'odd'
+            self.memoryState.item(item_id, values=(loc, new_val), tags=(tag,))
+        except Exception as e:
+            self.memoryState.item(item_id, values=(loc, new_val), tags=('invalid',))
+            self.write_system(f"Validation error at {loc}: {str(e)}")
+
+    def show_context_menu(self, event):
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
+
+    def get_selected_indices(self):
+        """Return list of (index, item_id) tuples for selected rows in ascending index order."""
+        selected = self.memoryState.selection()
+        children = list(self.memoryState.get_children())
+        pairs = []
+        for item in selected:
+            try:
+                idx = children.index(item)
+                pairs.append((idx, item))
+            except ValueError:
+                continue
+        pairs.sort()
+        return pairs
+
+    def copy_selection(self):
+        sel = self.get_selected_indices()
+        if not sel:
+            messagebox.showinfo("Copy", "No selection to copy.")
+            return
+        self.clipboard = []
+        for idx, item_id in sel:
+            loc, val = self.memoryState.item(item_id, 'values')
+            self.clipboard.append(val)
+        self.write_system(f"Copied {len(self.clipboard)} item(s) to clipboard")
+
+    def cut_selection(self):
+        sel = self.get_selected_indices()
+        if not sel:
+            messagebox.showinfo("Cut", "No selection to cut.")
+            return
+        self.clipboard = []
+        children = list(self.memoryState.get_children())
+        for idx, item_id in sel:
+            loc, val = self.memoryState.item(item_id, 'values')
+            self.clipboard.append(val)
+            # remove and shift everything below up
+            # set this location to +0000 and shift subsequent down to keep 100 entries
+            core._programMemory[loc] = "+0000"
+        # Rebuild view from core memory
+        self.build_memory_table(core._programMemory)
+        self.write_system(f"Cut {len(self.clipboard)} item(s)")
+
+    def paste_at_selection(self):
+        if not self.clipboard:
+            messagebox.showinfo("Paste", "Clipboard is empty.")
+            return
+        sel = self.get_selected_indices()
+        if sel:
+            start_idx = sel[0][0]
+        else:
+            # if nothing selected, paste at first free or at 0
+            start_idx = 0
+        # ensure we do not exceed 100 entries
+        available = 100 - start_idx
+        data_to_paste = list(self.clipboard)
+        if len(data_to_paste) > available:
+            data_to_paste = data_to_paste[:available]
+            messagebox.showwarning("Paste", "Pasted data was truncated to fit memory (100 entries max).")
+        # shift existing entries down to make room
+        # work from bottom up to avoid overwriting
+        for i in range(99, start_idx + len(data_to_paste) - 1, -1):
+            src = f"{max(0, i - len(data_to_paste)):02d}"
+            dst = f"{i:02d}"
+            core._programMemory[dst] = core._programMemory.get(src, "+0000")
+        # insert pasted data
+        for offset, val in enumerate(data_to_paste):
+            core._programMemory[f"{start_idx + offset:02d}"] = val
+        self.build_memory_table(core._programMemory)
+        self.write_system(f"Pasted {len(data_to_paste)} item(s) at {start_idx:02d}")
+
+    def add_instruction(self):
+        # append at end (first +0000 from top)
+        children = list(self.memoryState.get_children())
+        for i, item_id in enumerate(children):
+            loc, val = self.memoryState.item(item_id, 'values')
+            if val == "+0000":
+                # edit this one
+                self.memoryState.selection_set(item_id)
+                self.on_double_click(type('E', (), {'x':0,'y':self.memoryState.bbox(item_id)[1]}))
+                return
+        messagebox.showinfo("Add", "Memory is full (100 entries).")
+
+    def insert_instruction(self):
+        # insert before selected row, shift others down
+        sel = self.get_selected_indices()
+        if not sel:
+            idx = 0
+        else:
+            idx = sel[0][0]
+        # if no space to shift
+        if idx >= 100:
+            messagebox.showinfo("Insert", "Cannot insert beyond memory limit.")
+            return
+        # check space
+        # if last cell non-empty and would be pushed out, warn
+        if core._programMemory.get('99', '+0000') != '+0000':
+            if not messagebox.askyesno("Insert", "Inserting will drop the last memory entry. Continue?"):
+                return
+        # shift down from bottom to idx
+        for i in range(99, idx, -1):
+            core._programMemory[f"{i:02d}"] = core._programMemory.get(f"{i-1:02d}", "+0000")
+        core._programMemory[f"{idx:02d}"] = "+0000"
+        self.build_memory_table(core._programMemory)
+        # let user edit the new slot
+        item_id = self.memoryState.get_children()[idx]
+        self.memoryState.selection_set(item_id)
+        self.on_double_click(type('E', (), {'x':0,'y':self.memoryState.bbox(item_id)[1]}))
+
+    def delete_instruction(self):
+        sel = self.get_selected_indices()
+        if not sel:
+            messagebox.showinfo("Delete", "No selection to delete.")
+            return
+        children = list(self.memoryState.get_children())
+        # set selected indices to +0000 and shift subsequent up
+        indices = [i for i, _ in sel]
+        for idx in sorted(indices):
+            for j in range(idx, 99):
+                core._programMemory[f"{j:02d}"] = core._programMemory.get(f"{j+1:02d}", "+0000")
+            core._programMemory['99'] = "+0000"
+        self.build_memory_table(core._programMemory)
+        self.write_system(f"Deleted {len(indices)} row(s)")
+
+    def validate_memory_from_editor(self):
+        """Read all items from the Treeview (editor) into core._programMemory and validate each. Returns list of error strings."""
+        errors = []
+        children = list(self.memoryState.get_children())
+        for i, item_id in enumerate(children):
+            loc = f"{i:02d}"
+            val = self.memoryState.item(item_id, 'values')[1]
+            # empty treat as +0000
+            if val == '' or val is None:
+                val = "+0000"
+            core._programMemory[loc] = val
+            # skip default +0000
+            if val in ("+0000", "0000"):
+                continue
+            try:
+                core.parse(val)
+            except Exception as e:
+                errors.append(f"{loc}: {str(e)}")
+                # mark invalid
+                self.memoryState.item(item_id, tags=('invalid',))
+        return errors
+    
+    # -------- SAVE PROGRAM ------
+
+    def save_file(self, event):
+        # validate editor contents into core._programMemory
+        errors = self.validate_memory_from_editor()
+        if errors:
+            # ask user whether to proceed despite validation errors
+            proceed = messagebox.askyesno(
+                "Save - Validation issues",
+                ("There are validation errors in memory. Do you want to save anyway?"))
+            if not proceed:
+                return
+
+        # run save function
+        return self.save_file_as()
+
+    def save_file_as(self):
+        """
+        Prompt the user for save location (ask for filename)
+        """
+        # validate editor contents
+        errors = self.validate_memory_from_editor()
+        if errors:
+            proceed = messagebox.askyesno(
+                "Save As - Validation issues",
+                ("There are validation errors in memory. Do you want to save anyway?"))
+            if not proceed:
+                return
+
+        path = filedialog.asksaveasfilename(
+            title="Save Program As",
+            defaultextension=".txt",
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+        if not path:
+            return
+        try:
+            lines = [core._programMemory.get(f"{i:02d}", "+0000") for i in range(100)]
+            last = -1
+            for i, val in enumerate(lines):
+                if val != "+0000":
+                    last = i
+            write_lines = [] if last == -1 else lines[: last + 1]
+            with open(path, "w", encoding="utf-8") as f:
+                for ln in write_lines:
+                    f.write(str(ln).strip() + "\n")
+            self.current_filepath = path
+            self.file_valid = True
+            self.write_system(f"Saved program to {path}")
+            messagebox.showinfo("Save File As", "File saved successfully.")
+        except Exception as e:
+            messagebox.showerror("Save As Error", f"Error saving file:\n{str(e)}")
+            self.write_system(f"ERROR saving file: {str(e)}")
 
     # -------- RUN PROGRAM -------
 
@@ -615,27 +929,25 @@ Example: +1007 = READ into location 07"""
         """Runs all instructions/code in memory. Calls class definitions and definitions from main.py."""
         self.write_system("Running program...")
         core._programCounter = 0
-        
+
         try:
             while core._programCounter < 100:
                 instr = core._programMemory.get(f"{core._programCounter:02d}", "+0000")
-                
+
                 # Skip empty memory
                 if instr == "+0000" or instr == "0000":
                     core._programCounter += 1
                     continue
-                
+
                 # Parse instruction
                 try:
                     tuple_instr = core.parse(instr)
                     opcode = tuple_instr[0]
-                    #opcode = f"{tuple_instr[0]:02d}" # (Use this for debugging)
-                    #self.write_system(f"DEBUG: opcode={opcode}' repr={repr(opcode)}")
                 except Exception as e:
                     self.write_system(f"Parse Error at line {core._programCounter:02d}: {str(e)}")
                     self.write_system("Program halted")
                     return
-                
+
                 opcode = tuple_instr[0]
                 jumped = False
 
@@ -670,7 +982,7 @@ Example: +1007 = READ into location 07"""
                         break
                     else:
                         self.write_system(f"Warning: Unknown opcode '{opcode}' at line {core._programCounter:02d}")
-                
+
                 except Exception as e:
                     self.write_system(f"Runtime Error at line {core._programCounter:02d}: {str(e)}")
                     self.write_system("Program halted")
@@ -682,10 +994,9 @@ Example: +1007 = READ into location 07"""
                 self.root.after(0, self.update_vars)
                 self.update_memory(core._programMemory)
                 time.sleep(0.01)
-                
+
             self.write_system("Program finished")
-            
+
         except Exception as e:
             self.write_system(f"Fatal Error: {str(e)}")
             self.write_system("Program terminated")
-

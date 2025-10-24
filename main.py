@@ -1,4 +1,5 @@
 import sys
+import re
 import interface as face
 
 _accumulator = "+0000"
@@ -23,7 +24,8 @@ def parse(word):
     
     if len(word) < 4: # Check for too short
         raise ValueError(f"Instruction too short: '{word}' (need at least 4 digits)")
-    
+    if not re.fullmatch(r'^[+-]?\d+$', word): #Check for proper format
+        raise Exception("Word instruction contains invalid characters")
     # Handle sign
     newWord = word
     if word[0] not in ('+', '-'):
