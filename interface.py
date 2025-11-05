@@ -99,7 +99,7 @@ class Window:
         self.memoryState.column("Location", width=80, anchor="center", stretch=False)
         self.memoryState.column("Item", width=400, anchor="w", stretch=False)
 
-        for i in range(100):
+        for i in range(250):
             tag = "even" if i % 2 == 0 else "odd"
             self.memoryState.insert("", "end", values=(f"{i:02d}", "+0000"), tags=(tag,))
         self.memoryState.tag_configure("even", background="#f7f7f7")
@@ -272,7 +272,7 @@ class Window:
 
         4. Monitor Execution:
         - System Variables shows Accumulator and Program Counter
-        - Memory table shows all 100 memory locations
+        - Memory table shows all 250 memory locations
 
         5. Other Options:
         - Reset Program: Clear memory and restart
@@ -367,7 +367,7 @@ class Window:
 
             # Clear and initialize memory
             core._programMemory.clear()
-            for i in range(100):
+            for i in range(250):
                 core._programMemory[f"{i:02d}"] = "+0000"
 
             core._accumulator = "+0000" # Reset accumulator
@@ -380,8 +380,8 @@ class Window:
 
             with open(filepath, 'r') as f:
                 for i, line in enumerate(f):
-                    if memory_index >= 100:
-                        errors.append(f"Line {i+1}: File exceeds 100 lines")
+                    if memory_index >= 250:
+                        errors.append(f"Line {i+1}: File exceeds 250 lines")
                         break
 
                     line = line.strip()
@@ -527,8 +527,8 @@ class Window:
 
         for offset, line in enumerate(pasted):
             idx = start_index + offset
-            if idx >= 100:
-                messagebox.showwarning("Paste Limit", "Reached max memory size (100).")
+            if idx >= 250:
+                messagebox.showwarning("Paste Limit", "Reached max memory size (250).")
                 break
             if self._validate_instruction(line):
                 self.memoryState.item(self.memoryState.get_children()[idx], values=(f"{idx:02d}", line))
@@ -544,8 +544,8 @@ class Window:
     def _add_entry(self):
         """Add a blank new memory line if space allows."""
         current_count = len(self.memoryState.get_children())
-        if current_count >= 100:
-            messagebox.showwarning("Memory Full", "Maximum of 100 entries allowed.")
+        if current_count >= 250:
+            messagebox.showwarning("Memory Full", "Maximum of 250 entries allowed.")
             return
         new_index = current_count
         self.memoryState.insert("", "end", values=(f"{new_index:02d}", "+0000"))
@@ -601,7 +601,7 @@ class Window:
 
         for row in self.memoryState.get_children():
             self.memoryState.delete(row)
-        for i in range(100):
+        for i in range(250):
             loc = f"{i:02d}"
             item = memory_dict.get(loc, "+0000")
             tag = "even" if i % 2 == 0 else "odd"
@@ -620,7 +620,7 @@ class Window:
 
         # only update rows that changed
         children = self.memoryState.get_children()
-        for i in range(100):
+        for i in range(250):
             loc = f"{i:02d}"
             new_val = memory_dict.get(loc, "+0000")
 
@@ -761,7 +761,7 @@ class Window:
             loc, val = self.memoryState.item(item_id, 'values')
             self.clipboard.append(val)
             # remove and shift everything below up
-            # set this location to +0000 and shift subsequent down to keep 100 entries
+            # set this location to +0000 and shift subsequent down to keep 250 entries
             core._programMemory[loc] = "+0000"
         # Rebuild view from core memory
         self.build_memory_table(core._programMemory)
@@ -778,11 +778,11 @@ class Window:
             # if nothing selected, paste at first free or at 0
             start_idx = 0
         # ensure we do not exceed 100 entries
-        available = 100 - start_idx
+        available = 250 - start_idx
         data_to_paste = list(self.clipboard)
         if len(data_to_paste) > available:
             data_to_paste = data_to_paste[:available]
-            messagebox.showwarning("Paste", "Pasted data was truncated to fit memory (100 entries max).")
+            messagebox.showwarning("Paste", "Pasted data was truncated to fit memory (250 entries max).")
         # shift existing entries down to make room
         # work from bottom up to avoid overwriting
         for i in range(99, start_idx + len(data_to_paste) - 1, -1):
@@ -805,7 +805,7 @@ class Window:
                 self.memoryState.selection_set(item_id)
                 self.on_double_click(type('E', (), {'x':0,'y':self.memoryState.bbox(item_id)[1]}))
                 return
-        messagebox.showinfo("Add", "Memory is full (100 entries).")
+        messagebox.showinfo("Add", "Memory is full (250 entries).")
 
     def insert_instruction(self):
         # insert before selected row, shift others down
@@ -815,7 +815,7 @@ class Window:
         else:
             idx = sel[0][0]
         # if no space to shift
-        if idx >= 100:
+        if idx >= 250:
             messagebox.showinfo("Insert", "Cannot insert beyond memory limit.")
             return
         # check space
@@ -906,7 +906,7 @@ class Window:
         if not path:
             return
         try:
-            lines = [core._programMemory.get(f"{i:02d}", "+0000") for i in range(100)]
+            lines = [core._programMemory.get(f"{i:02d}", "+0000") for i in range(250)]
             last = -1
             for i, val in enumerate(lines):
                 if val != "+0000":
@@ -931,7 +931,7 @@ class Window:
         core._programCounter = 0
 
         try:
-            while core._programCounter < 100:
+            while core._programCounter < 250:
                 instr = core._programMemory.get(f"{core._programCounter:02d}", "+0000")
 
                 # Skip empty memory
