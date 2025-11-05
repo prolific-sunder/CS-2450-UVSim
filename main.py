@@ -202,7 +202,7 @@ def branch(tuple):
     """Unconditional branch: always set PC to operand."""
     global _programCounter
     address = tuple[1]
-    if not address.isdigit() or not (0 <= int(address) <= 99):
+    if not address.isdigit() or not (0 <= int(address) <= 249):
         raise ValueError(f"Invalid branch address: '{address}'")
 
     _programCounter = int(tuple[1])
@@ -225,7 +225,7 @@ def branchzero(tuple):
 
     if int(_accumulator) == 0:
         address = tuple[1]
-        if not address.isdigit() or not (0 <= int(address) <= 99):
+        if not address.isdigit() or not (0 <= int(address) <= 249):
             raise ValueError(f"Invalid branch address: '{address}'")
         _programCounter = int(tuple[1])
     return _programCounter != old_pc
