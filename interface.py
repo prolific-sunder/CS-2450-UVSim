@@ -6,16 +6,37 @@ import json
 import os
 import main as core
 
+# TO DO
+"""
+
+Load File button will always add a tab. The program loads with no tabs initially - Kaleb
+The new tab becomes the 'active' tab - Kaleb
+Test whether the reset, run, and edit functionality works only on the 'active' tab - Kaleb
+
+Close tab button opposite from Memory label, above the notebook - Lindsey 
+Close tab button removes the 'active' tab
+close tab button complete, it even disappears when there are no active tabs!
+
+Make it pretty - Lindsey
+
+"""
+
+
 class Window:
     def __init__(self, name="UVsim", size="1280x720"):
         # Load colors from config
         self.primary_color, self.secondary_color = self.load_colors()
-        
+
         # --- Main Window ---
         self.root = tk.Tk()
         self.root.title(name)
         self.root.configure(background=self.primary_color)
         self.root.geometry(size)
+
+        # NEW CODE
+        # Notebook
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.place(x=700, y=60, width=550, height=620)
 
         # Clipboard for cut/copy/paste (list of strings)
         self.clipboard = []
@@ -24,16 +45,17 @@ class Window:
         # --- Left Side Buttons ---
         self.load_btn = tk.Button(self.root, text="Load File", width=12, height=4, command=self.load_file)
         self.load_btn.grid(row=0, column=0, padx=20, pady=20)
-        
+
         self.run_btn = tk.Button(self.root, text="Run Program", width=12, height=4, command=self.run_program)
         self.run_btn.grid(row=1, column=0, padx=20, pady=20)
-        
+
         self.reset_btn = tk.Button(self.root, text="Reset Program", width=12, height=4, command=self.reset_memory)
         self.reset_btn.grid(row=2, column=0, padx=20, pady=20)
-        
-        self.theme_btn = tk.Button(self.root, text="Theme Settings", width=12, height=4, command=self.open_theme_settings)
+
+        self.theme_btn = tk.Button(self.root, text="Theme Settings", width=12, height=4,
+                                   command=self.open_theme_settings)
         self.theme_btn.grid(row=3, column=0, padx=20, pady=20)
-        
+
         self.help_label = tk.Label(self.root, text="Program Help", bg=self.primary_color, font=("Helvetica", 12))
         self.help_label.grid(row=4, column=0, padx=20, pady=6)
         self.help_btn1 = tk.Button(self.root, text="Program Use", width=12, command=self.show_program_instructions)
@@ -43,33 +65,49 @@ class Window:
 
         self.title_label = tk.Label(self.root, text="UVSim", bg=self.primary_color, font=("Helvetica", 30))
         self.title_label.place(rely=1.0, relx=0, x=10, y=-5, anchor="sw")
-        
+
         self.divider = tk.Canvas(self.root, width=3, height=900, bg=self.primary_color, bd=0, highlightthickness=0)
         self.divider.grid(row=0, column=2, rowspan=50, padx=10)
+        # --- NEW BUTTON TO CLOSE ACTIVE TAB --- new code
 
+        # Place above the notebook, to the right
+        self.close_tab_btn = tk.Button(
+            self.root,
+            text="Close Tab",
+            width=12,
+            height=2,
+            command=self.close_tab
+        )
+        self.close_tab_btn.place(x=1100, y=20)  # Adjust x/y as needed for spacing
+
+        if not self.notebook.tabs():
+            self.close_tab_btn.place_forget()
         # --- System Messages ---
         self.log_frame = tk.Frame(self.root, bg=self.primary_color, bd=0, highlightthickness=0)
         self.log_frame.place(x=200, y=25)
 
-        self.log_label = tk.Label(self.log_frame, text="System Messages", bg=self.primary_color, font=("Helvetica", 18), anchor="w")
-        self.log_label.pack(fill="x", padx=0, pady=(0,4))
+        self.log_label = tk.Label(self.log_frame, text="System Messages", bg=self.primary_color, font=("Helvetica", 18),
+                                  anchor="w")
+        self.log_label.pack(fill="x", padx=0, pady=(0, 4))
 
         # -Text widget for the log (disabled for direct editing)
-        self.system_output = tk.Text(self.log_frame, height=10, width=50, state="disabled", wrap="word", font=("Helvetica", 12), bd=1, relief="solid")
+        self.system_output = tk.Text(self.log_frame, height=10, width=50, state="disabled", wrap="word",
+                                     font=("Helvetica", 12), bd=1, relief="solid")
         self.system_output.pack(fill="both", expand=True)
         self.systemState = self.system_output
 
         # --- System Variables ---
         self.vars_label = tk.Label(self.root, text="System Variables", bg=self.primary_color, font=("Helvetica", 18))
         self.vars_label.place(x=200, y=260)
-        
-        self.varsState = tk.Label(self.root, text="Accumulator: +0000\nProgram Counter: 00", bg="white", font=("Helvetica", 12), width=50, height=3, anchor="nw")
+
+        self.varsState = tk.Label(self.root, text="Accumulator: +0000\nProgram Counter: 00", bg="white",
+                                  font=("Helvetica", 12), width=50, height=3, anchor="nw")
         self.varsState.place(x=200, y=295)
 
         # --- User Console ---
         self.console_label = tk.Label(self.root, text="User Console", bg=self.primary_color, font=("Helvetica", 18))
         self.console_label.place(x=200, y=370)
-        
+
         self.userInput = tk.Entry(self.root, width=45, font=("Courier New", 12), state="disabled")
         self.userInput.place(x=200, y=405)
         self.userInput.bind("<Return>", self._submit_input)
@@ -79,19 +117,22 @@ class Window:
         self.memory_label = tk.Label(self.root, text="Memory", bg=self.primary_color, font=("Helvetica", 18))
         self.memory_label.place(x=725, y=25)
 
-        frame = tk.Frame(self.root, bg="white")
-        frame.place(x=725, y=60, width=500, height=560)
+        self.frame = ttk.Frame(self.notebook, width=400, height=280)
+        # frame.place(x=725, y=60, width=500, height=560)
+        self.frame.grid(column=1, row=1)
 
-        scrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL, width=18)
+        scrollbar = tk.Scrollbar(self.frame, orient=tk.VERTICAL, width=18)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         # allow selection for editing/cut/copy/paste
-        self.memoryState = ttk.Treeview(frame, columns=("Location", "Item"), show="headings", yscrollcommand=scrollbar.set, selectmode="extended", height=35)
+        self.memoryState = ttk.Treeview(self.frame, columns=("Location", "Item"), show="headings",
+                                        yscrollcommand=scrollbar.set, selectmode="extended", height=35)
         self.memoryState.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.memoryState.yview)
 
         style = ttk.Style()
-        style.configure("Custom.Treeview", background="white", foreground="black", rowheight=18, font=("Courier New", 12))
+        style.configure("Custom.Treeview", background="white", foreground="black", rowheight=18,
+                        font=("Courier New", 12))
         style.map("Custom.Treeview", background=[("selected", "white")], foreground=[("selected", "black")])
         self.memoryState.configure(style="Custom.Treeview")
         self.memoryState.heading("Location", text="Location")
@@ -104,10 +145,10 @@ class Window:
             self.memoryState.insert("", "end", values=(f"{i:02d}", "+0000"), tags=(tag,))
         self.memoryState.tag_configure("even", background="#f7f7f7")
         self.memoryState.tag_configure("odd", background="#f0f0f0")
-        
+
         # tag for invalid entries
         self.memoryState.tag_configure("invalid", background="#ffdddd")
-                               
+
         # allow double-click edit
         self.memoryState.bind('<Double-1>', self.on_double_click)
         # right-click context menu
@@ -129,12 +170,18 @@ class Window:
         # wait for 'ctrl+s'
         self.root.bind('<Control-s>', self.save_file)
 
+        # NEW
+        # Pack?
+        self.notebook.add(self.frame, text="Test Mem")
+        self.notebook.place(x=700, y=60, width=550, height=620)
+        self.close_tab_btn.place(x=1100, y=20)
+
         # Apply initial theme
         self.apply_theme()
         self.root.mainloop()
-                                       
+
     # --- Color Theme Management ---
-    
+
     def load_colors(self):
         """Load colors from config.json or return defaults."""
         if os.path.exists('config.json'):
@@ -145,7 +192,7 @@ class Window:
             except:
                 pass
         return '#4C721D', '#FFFFFF'  # UVU defaults
-    
+
     def save_colors(self):
         """Save current colors to config.json."""
         try:
@@ -156,24 +203,24 @@ class Window:
                 }, f, indent=2)
         except:
             pass
-    
+
     def get_text_color(self, bg_color):
         """Code obtained using Claude AI. Return 'black' or 'white' based on background brightness."""
         hex_color = bg_color.lstrip('#')
         r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
         brightness = (r * 299 + g * 587 + b * 114) / 1000
         return 'black' if brightness > 128 else 'white'
-    
+
     def apply_theme(self):
         """Apply current theme colors to all widgets."""
         primary_text = self.get_text_color(self.primary_color)
         secondary_text = self.get_text_color(self.secondary_color)
-        
+
         # Backgrounds
         self.root.configure(bg=self.primary_color)
         self.log_frame.config(bg=self.primary_color)
         self.divider.config(bg=self.primary_color)
-        
+
         # Labels
         self.title_label.config(bg=self.primary_color, fg=primary_text)
         self.help_label.config(bg=self.primary_color, fg=primary_text)
@@ -181,10 +228,11 @@ class Window:
         self.vars_label.config(bg=self.primary_color, fg=primary_text)
         self.console_label.config(bg=self.primary_color, fg=primary_text)
         self.memory_label.config(bg=self.primary_color, fg=primary_text)
-        
+
         # Buttons
-        for btn in [self.load_btn, self.run_btn, self.reset_btn, self.theme_btn, self.help_btn1, self.help_btn2]: btn.config(bg=self.secondary_color, fg=secondary_text)
-    
+        for btn in [self.load_btn, self.run_btn, self.reset_btn, self.theme_btn, self.help_btn1,
+                    self.help_btn2]: btn.config(bg=self.secondary_color, fg=secondary_text)
+
     def open_theme_settings(self):
         """Open simple color picker dialog."""
         dialog = tk.Toplevel(self.root)
@@ -193,67 +241,67 @@ class Window:
         dialog.resizable(False, False)
         dialog.transient(self.root)
         dialog.grab_set()
-        
+
         tk.Label(dialog, text="Theme Settings", font=("Helvetica", 16, "bold")).pack(pady=20)
-        
+
         # Primary Color
-        frame1 = tk.Frame(dialog) 
+        frame1 = tk.Frame(dialog)
         frame1.pack(pady=10)
         tk.Label(frame1, text="Primary Color:", font=("Helvetica", 12)).pack(side=tk.LEFT, padx=10)
         primary_box = tk.Label(frame1, text="      ", bg=self.primary_color, relief=tk.RAISED, width=10, height=2)
         primary_box.pack(side=tk.LEFT, padx=5)
-        
+
         def choose_primary():
             color = colorchooser.askcolor(initialcolor=self.primary_color, title="Choose Primary Color")
             if color[1]:
                 self.primary_color = color[1]
                 primary_box.config(bg=self.primary_color)
                 self.apply_theme()
-        
+
         tk.Button(frame1, text="Choose", command=choose_primary).pack(side=tk.LEFT, padx=5)
-        
+
         # Secondary Color
         frame2 = tk.Frame(dialog)
         frame2.pack(pady=10)
         tk.Label(frame2, text="Secondary Color:", font=("Helvetica", 12)).pack(side=tk.LEFT, padx=10)
         secondary_box = tk.Label(frame2, text="      ", bg=self.secondary_color, relief=tk.RAISED, width=10, height=2)
         secondary_box.pack(side=tk.LEFT, padx=5)
-        
+
         def choose_secondary():
             color = colorchooser.askcolor(initialcolor=self.secondary_color, title="Choose Secondary Color")
             if color[1]:
                 self.secondary_color = color[1]
                 secondary_box.config(bg=self.secondary_color)
                 self.apply_theme()
-        
+
         tk.Button(frame2, text="Choose", command=choose_secondary).pack(side=tk.LEFT, padx=5)
-        
+
         # Buttons
         btn_frame = tk.Frame(dialog)
         btn_frame.pack(pady=20)
-        
+
         def save_and_close():
             self.save_colors()
             messagebox.showinfo("Success", "Theme saved!", parent=dialog)
             dialog.destroy()
-        
+
         def reset_defaults():
             self.primary_color = '#4C721D'
             self.secondary_color = '#FFFFFF'
             primary_box.config(bg=self.primary_color)
             secondary_box.config(bg=self.secondary_color)
             self.apply_theme()
-        
+
         tk.Button(btn_frame, text="Save", command=save_and_close, width=10).pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Cancel", command=dialog.destroy, width=10).pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Reset to UVU", command=reset_defaults, width=12).pack(side=tk.LEFT, padx=5)
-        
+
         # Center dialog
         dialog.update_idletasks()
         x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
         dialog.geometry(f"+{x}+{y}")
-    
+
     def show_program_instructions(self):
         """Display help dialog."""
         instructions = """To use UVSim:
@@ -277,39 +325,39 @@ class Window:
         5. Other Options:
         - Reset Program: Clear memory and restart
         - Theme Settings: Customize colors
-        
+
         BasicML Instruction Format:
         - 4-digit signed numbers
         - First 2 digits: opcode
         - Last 2 digits: memory address
         - Example: +1007 = READ into location 07"""
-        
+
         dialog = tk.Toplevel(self.root)
         dialog.title("UVSim Help")
         dialog.geometry("550x450")
         dialog.resizable(False, False)
         dialog.transient(self.root)
         dialog.grab_set()
-        
+
         tk.Label(dialog, text="UVSim Instructions", font=("Helvetica", 18, "bold")).pack(pady=15)
-        
+
         frame = tk.Frame(dialog)
         frame.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
-        
+
         scrollbar = tk.Scrollbar(frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11), 
-                             yscrollcommand=scrollbar.set, padx=10, pady=10)
+
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11),
+                              yscrollcommand=scrollbar.set, padx=10, pady=10)
         text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=text_widget.yview)
-        
+
         text_widget.insert("1.0", instructions)
         text_widget.config(state="disabled")
-        
-        tk.Button(dialog, text="Close", command=dialog.destroy, width=15, 
-                 font=("Helvetica", 11)).pack(pady=15)
-        
+
+        tk.Button(dialog, text="Close", command=dialog.destroy, width=15,
+                  font=("Helvetica", 11)).pack(pady=15)
+
         dialog.update_idletasks()
         x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
@@ -324,33 +372,33 @@ class Window:
 • Selected memory cell is highlighted in white.
 • You can load, inspect, and modify memory before running the program.
 • Save your file by typing 'CTRL+S'"""
-        
+
         dialog = tk.Toplevel(self.root)
         dialog.title("Edit Help")
         dialog.geometry("550x250")
         dialog.resizable(False, False)
         dialog.transient(self.root)
         dialog.grab_set()
-        
+
         tk.Label(dialog, text="Edit Instructions", font=("Helvetica", 18, "bold")).pack(pady=15)
-        
+
         frame = tk.Frame(dialog)
         frame.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
-        
+
         scrollbar = tk.Scrollbar(frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11), 
-                             yscrollcommand=scrollbar.set, padx=10, pady=10)
+
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11),
+                              yscrollcommand=scrollbar.set, padx=10, pady=10)
         text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=text_widget.yview)
-        
+
         text_widget.insert("1.0", instructions)
         text_widget.config(state="disabled")
-        
-        tk.Button(dialog, text="Close", command=dialog.destroy, width=15, 
-                 font=("Helvetica", 11)).pack(pady=15)
-        
+
+        tk.Button(dialog, text="Close", command=dialog.destroy, width=15,
+                  font=("Helvetica", 11)).pack(pady=15)
+
         dialog.update_idletasks()
         x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
@@ -361,7 +409,8 @@ class Window:
     def load_file(self):
         """Utilizes filedialog to open a file and read it into memory"""
         try:
-            filepath = filedialog.askopenfilename(title="Select a Program File", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+            filepath = filedialog.askopenfilename(title="Select a Program File",
+                                                  filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
             if not filepath:
                 return None
 
@@ -370,8 +419,8 @@ class Window:
             for i in range(100):
                 core._programMemory[f"{i:02d}"] = "+0000"
 
-            core._accumulator = "+0000" # Reset accumulator
-            core._programCounter = 0 # Reset program counter
+            core._accumulator = "+0000"  # Reset accumulator
+            core._programCounter = 0  # Reset program counter
 
             # Read and validate file
             errors = []
@@ -381,7 +430,7 @@ class Window:
             with open(filepath, 'r') as f:
                 for i, line in enumerate(f):
                     if memory_index >= 100:
-                        errors.append(f"Line {i+1}: File exceeds 100 lines")
+                        errors.append(f"Line {i + 1}: File exceeds 100 lines")
                         break
 
                     line = line.strip()
@@ -406,7 +455,7 @@ class Window:
                     except Exception as e:
                         # keep the invalid instruction in memory so user can edit it
                         core._programMemory[f"{memory_index:02d}"] = line
-                        errors.append(f"Line {i+1}: {str(e)}")
+                        errors.append(f"Line {i + 1}: {str(e)}")
                         memory_index += 1
 
             # Update display
@@ -427,7 +476,7 @@ class Window:
                 self.write_system(f"File loaded successfully: {line_count} instructions")
                 self.file_valid = True
                 self.enable_memory_editing()
-                
+
         except FileNotFoundError:
             messagebox.showerror("Load File Error", "File not found")
             self.write_system("ERROR: File not found")
@@ -503,6 +552,18 @@ class Window:
         except Exception:
             return False
 
+    # New code
+    def close_tab(self):
+        """Close the currently selected tab window."""
+        selected_tab = self.notebook.select()
+        if selected_tab:
+            self.notebook.forget(selected_tab)
+
+        # Hide button if no tabs remain
+        if not self.notebook.tabs():
+            self.close_tab_btn.place_forget()
+    #End of new code
+
     def _copy_selection(self, event=None):
         """Copy selected rows to clipboard."""
         selection = [self.memoryState.item(i, "values")[1] for i in self.memoryState.selection()]
@@ -558,7 +619,7 @@ class Window:
             self.memory_menu.tk_popup(event.x_root, event.y_root)
         finally:
             self.memory_menu.grab_release()
-            
+
     def run_program(self):
         """Validate current editor memory and then run in a thread if valid."""
         # Re-validate current memory content before running
@@ -669,7 +730,7 @@ class Window:
 
     def get_input(self):
         """Enable the input box, wait for integer input, then disable again."""
-        self.userInput.config(state="normal")   # allow typing
+        self.userInput.config(state="normal")  # allow typing
         self.userInput.focus_set()
 
         value = None
@@ -690,7 +751,7 @@ class Window:
         self.userInput.delete(0, tk.END)
         self.userInput.config(state="disabled")  # lock input again
         return value
-    
+
     # --- Editing helpers ---
 
     def on_double_click(self, event):
@@ -803,7 +864,7 @@ class Window:
             if val == "+0000":
                 # edit this one
                 self.memoryState.selection_set(item_id)
-                self.on_double_click(type('E', (), {'x':0,'y':self.memoryState.bbox(item_id)[1]}))
+                self.on_double_click(type('E', (), {'x': 0, 'y': self.memoryState.bbox(item_id)[1]}))
                 return
         messagebox.showinfo("Add", "Memory is full (100 entries).")
 
@@ -825,13 +886,13 @@ class Window:
                 return
         # shift down from bottom to idx
         for i in range(99, idx, -1):
-            core._programMemory[f"{i:02d}"] = core._programMemory.get(f"{i-1:02d}", "+0000")
+            core._programMemory[f"{i:02d}"] = core._programMemory.get(f"{i - 1:02d}", "+0000")
         core._programMemory[f"{idx:02d}"] = "+0000"
         self.build_memory_table(core._programMemory)
         # let user edit the new slot
         item_id = self.memoryState.get_children()[idx]
         self.memoryState.selection_set(item_id)
-        self.on_double_click(type('E', (), {'x':0,'y':self.memoryState.bbox(item_id)[1]}))
+        self.on_double_click(type('E', (), {'x': 0, 'y': self.memoryState.bbox(item_id)[1]}))
 
     def delete_instruction(self):
         sel = self.get_selected_indices()
@@ -843,7 +904,7 @@ class Window:
         indices = [i for i, _ in sel]
         for idx in sorted(indices):
             for j in range(idx, 99):
-                core._programMemory[f"{j:02d}"] = core._programMemory.get(f"{j+1:02d}", "+0000")
+                core._programMemory[f"{j:02d}"] = core._programMemory.get(f"{j + 1:02d}", "+0000")
             core._programMemory['99'] = "+0000"
         self.build_memory_table(core._programMemory)
         self.write_system(f"Deleted {len(indices)} row(s)")
@@ -869,7 +930,7 @@ class Window:
                 # mark invalid
                 self.memoryState.item(item_id, tags=('invalid',))
         return errors
-    
+
     # -------- SAVE PROGRAM ------
 
     def save_file(self, event):
