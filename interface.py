@@ -10,8 +10,12 @@ import main as core
 """
 
 Load File button will always add a tab. The program loads with no tabs initially - Kaleb
+    Complete
 The new tab becomes the 'active' tab - Kaleb
+    Complete
 Test whether the reset, run, and edit functionality works only on the 'active' tab - Kaleb
+    No way Jose. The current program is only set to hold one file's worth of memory. 
+    I don't know enough about how the memory works in this to get multiple files together in one place.
 
 Close tab button opposite from Memory label, above the notebook - Lindsey 
 Close tab button removes the 'active' tab
@@ -68,17 +72,18 @@ class Window:
 
         self.divider = tk.Canvas(self.root, width=3, height=900, bg=self.primary_color, bd=0, highlightthickness=0)
         self.divider.grid(row=0, column=2, rowspan=50, padx=10)
+
         # --- NEW BUTTON TO CLOSE ACTIVE TAB --- new code
 
         # Place above the notebook, to the right
         self.close_tab_btn = tk.Button(
             self.root,
             text="Close Tab",
-            width=12,
-            height=2,
+            width=10,
+            height=1,
             command=self.close_tab
         )
-        self.close_tab_btn.place(x=1100, y=20)  # Adjust x/y as needed for spacing
+        self.close_tab_btn.place(x=1200, y=30)  # Adjust x/y as needed for spacing
 
         if not self.notebook.tabs():
             self.close_tab_btn.place_forget()
@@ -117,51 +122,6 @@ class Window:
         self.memory_label = tk.Label(self.root, text="Memory", bg=self.primary_color, font=("Helvetica", 18))
         self.memory_label.place(x=725, y=25)
 
-        self.frame = ttk.Frame(self.notebook, width=400, height=280)
-        # frame.place(x=725, y=60, width=500, height=560)
-        self.frame.grid(column=1, row=1)
-
-        scrollbar = tk.Scrollbar(self.frame, orient=tk.VERTICAL, width=18)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # allow selection for editing/cut/copy/paste
-        self.memoryState = ttk.Treeview(self.frame, columns=("Location", "Item"), show="headings",
-                                        yscrollcommand=scrollbar.set, selectmode="extended", height=35)
-        self.memoryState.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.memoryState.yview)
-
-        style = ttk.Style()
-        style.configure("Custom.Treeview", background="white", foreground="black", rowheight=18,
-                        font=("Courier New", 12))
-        style.map("Custom.Treeview", background=[("selected", "white")], foreground=[("selected", "black")])
-        self.memoryState.configure(style="Custom.Treeview")
-        self.memoryState.heading("Location", text="Location")
-        self.memoryState.heading("Item", text="Memory Item")
-        self.memoryState.column("Location", width=80, anchor="center", stretch=False)
-        self.memoryState.column("Item", width=400, anchor="w", stretch=False)
-
-        for i in range(100):
-            tag = "even" if i % 2 == 0 else "odd"
-            self.memoryState.insert("", "end", values=(f"{i:02d}", "+0000"), tags=(tag,))
-        self.memoryState.tag_configure("even", background="#f7f7f7")
-        self.memoryState.tag_configure("odd", background="#f0f0f0")
-
-        # tag for invalid entries
-        self.memoryState.tag_configure("invalid", background="#ffdddd")
-
-        # allow double-click edit
-        self.memoryState.bind('<Double-1>', self.on_double_click)
-        # right-click context menu
-        self.memoryState.bind('<Button-3>', self.show_context_menu)
-
-        # context menu
-        self.context_menu = tk.Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Cut", command=self.cut_selection)
-        self.context_menu.add_command(label="Copy", command=self.copy_selection)
-        self.context_menu.add_command(label="Paste", command=self.paste_at_selection)
-        self.context_menu.add_separator()
-        self.context_menu.add_command(label="Delete", command=self.delete_instruction)
-
         self.initial_memory = {}
         self.run_thread = None
         self.file_valid = False
@@ -172,7 +132,6 @@ class Window:
 
         # NEW
         # Pack?
-        self.notebook.add(self.frame, text="Test Mem")
         self.notebook.place(x=700, y=60, width=550, height=620)
         self.close_tab_btn.place(x=1100, y=20)
 
@@ -414,13 +373,57 @@ class Window:
             if not filepath:
                 return None
 
-            # Clear and initialize memory
-            core._programMemory.clear()
-            for i in range(100):
-                core._programMemory[f"{i:02d}"] = "+0000"
+            # Initilize new Tab
+            self.new_frame = ttk.Frame(self.notebook, width=400, height=280)
+            # frame.place(x=725, y=60, width=500, height=560)
+            self.new_frame.grid(column=1, row=1)
 
-            core._accumulator = "+0000"  # Reset accumulator
-            core._programCounter = 0  # Reset program counter
+            scrollbar = tk.Scrollbar(self.new_frame, orient=tk.VERTICAL, width=18)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+            # allow selection for editing/cut/copy/paste
+            self.memoryState = ttk.Treeview(self.new_frame, columns=("Location", "Item"), show="headings", yscrollcommand=scrollbar.set, selectmode="extended", height=35)
+            self.memoryState.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            scrollbar.config(command=self.memoryState.yview)
+
+            # Style, I think?
+            style = ttk.Style()
+            style.configure("Custom.Treeview", background="white", foreground="black", rowheight=18, font=("Courier New", 12))
+            style.map("Custom.Treeview", background=[("selected", "white")], foreground=[("selected", "black")])
+            self.memoryState.configure(style="Custom.Treeview")
+            self.memoryState.heading("Location", text="Location")
+            self.memoryState.heading("Item", text="Memory Item")
+            self.memoryState.column("Location", width=80, anchor="center", stretch=False)
+            self.memoryState.column("Item", width=400, anchor="w", stretch=False)
+
+            for i in range(100):
+                tag = "even" if i % 2 == 0 else "odd"
+                self.memoryState.insert("", "end", values=(f"{i:02d}", "+0000"), tags=(tag,))
+            self.memoryState.tag_configure("even", background="#f7f7f7")
+            self.memoryState.tag_configure("odd", background="#f0f0f0")
+
+            # tag for invalid entries
+            self.memoryState.tag_configure("invalid", background="#ffdddd")
+
+            # allow double-click edit
+            self.memoryState.bind('<Double-1>', self.on_double_click)
+            # right-click context menu
+            self.memoryState.bind('<Button-3>', self.show_context_menu)
+
+            # context menu
+            self.context_menu = tk.Menu(self.root, tearoff=0)
+            self.context_menu.add_command(label="Cut", command=self.cut_selection)
+            self.context_menu.add_command(label="Copy", command=self.copy_selection)
+            self.context_menu.add_command(label="Paste", command=self.paste_at_selection)
+            self.context_menu.add_separator()
+            self.context_menu.add_command(label="Delete", command=self.delete_instruction)
+
+            # Defining the new frame
+            new_title = filepath.split("/")
+            self.notebook.add(self.new_frame, text=new_title[-1])
+            self.notebook.place(x=700, y=60, width=550, height=620)
+            temp_windows = self.notebook.tabs()
+            self.notebook.select(temp_windows[-1])
 
             # Read and validate file
             errors = []
@@ -560,8 +563,11 @@ class Window:
             self.notebook.forget(selected_tab)
 
         # Hide button if no tabs remain
+
+        # For now, I'm removing this functionality as it doesn't come back if you add a new tab - Kaleb
+        """
         if not self.notebook.tabs():
-            self.close_tab_btn.place_forget()
+            self.close_tab_btn.place_forget()"""
     #End of new code
 
     def _copy_selection(self, event=None):
