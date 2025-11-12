@@ -14,9 +14,14 @@ def _overflow_value(value: int) -> str:
     return f"{sign}{digits.zfill(4)}"
 
 def parse(word):
-    # Takes a string instruction
-    # Returns a tuple
-    # Check if word is signed
+    """
+    Parse instruction - supports both 4-digit and 6-digit formats:
+    - 4-digit: [sign]XXYY where XX=opcode (2 digits), YY=operand (2 digits)
+    - 6-digit: [sign]0XXYYY where 0XX=opcode (3 digits with leading 0), YYY=operand (3 digits)
+    
+    Takes a string instruction
+    Returns a tuple (opcode, operand, full_word)
+    """
     if not word: # Check for empty string
         raise ValueError("Empty word instruction")
     
@@ -24,28 +29,77 @@ def parse(word):
     
     if len(word) < 4: # Check for too short
         raise ValueError(f"Instruction too short: '{word}' (need at least 4 digits)")
-    if not re.fullmatch(r'^[+-]?\d+$', word): #Check for proper format
+    
+    # Check for proper format before adding sign
+    if not re.fullmatch(r'^[+-]?\d+$', word):
         raise Exception("Word instruction contains invalid characters")
+    
     # Handle sign
     newWord = word
     if word[0] not in ('+', '-'):
         newWord = '+' + word
     
-    # Check length after adding sign
-    if len(newWord) != 5:
-        if len(newWord) > 5:
-            raise ValueError(f"Instruction too long: '{word}' (max 4 digits plus sign)")
-        else:
-            raise ValueError(f"Instruction invalid: '{word}")
-        
-    # Check if all characters are digits (except sign)
-    if not newWord[1:].isdigit():
-        raise ValueError(f"Instruction contains non-digit characters: '{word}'")
+    # Determine format based on length
+    if len(newWord) == 5:  # 4-digit format: +XXYY
+        if not newWord[1:].isdigit():
+            raise ValueError(f"Instruction contains non-digit characters: '{word}'")
+        opcode = newWord[1:3]  # First two digits after sign (e.g., "10")
+        operand = newWord[3:5] # Last two digits (e.g., "25")
+        return (opcode, operand, newWord)
     
-    # Parse into components
-    opcode = (newWord[1:3])  # First two digits after sign
-    operand = (newWord[3:])   # Last two digits
-    return (opcode, operand, newWord)
+    elif len(newWord) == 7: # 6-digit format: +0XXYYY
+        if not newWord[1:].isdigit():
+            raise ValueError(f"Instruction contains non-digit characters: '{word}'")
+        opcode = newWord[1:4]  # First three digits after sign (e.g., "010")
+        operand = newWord[4:7] # Last three digits (e.g., "025")
+        # Strip leading zero from opcode for consistency with 4-digit format
+        opcode = opcode.lstrip('0') or '0' # Keep at least one digit
+        if len(opcode) == 1:
+            opcode = '0' + opcode # Ensure 2-digit opcode (e.g., "10" not "1")
+        return (opcode, operand, newWord)
+    
+    else:
+        raise ValueError(f"Invalid instruction length: '{word}' (must be 4 or 6 digits plus sign)")
+
+def convert_4_to_6_digit(instruction):
+    """
+    Convert 4-digit instruction to 6-digit format.
+    4-digit: +XXYY becomes +0XX0YY
+    Opcode gets leading zero: 10 becomes 010
+    Operand gets leading zero: 25 becomes 025
+    """
+    if not instruction:
+        return instruction
+    
+    instruction = instruction.strip()
+    
+    # Handle sign
+    if instruction[0] not in ('+', '-'):
+        instruction = '+' + instruction
+    
+    # Check if already 6-digit format
+    if len(instruction) == 7:
+        return instruction
+    
+    # Check if valid 4-digit format
+    if len(instruction) != 5:
+        return instruction  # Return as-is if invalid
+    
+    sign = instruction[0]
+    first_two_digits = instruction[1:3]
+    last_two_digits = instruction[3:5]
+    
+    valid_opcodes = {'10', '11', '20', '21', '30', '31', '32', '33', '40', '41', '42', '43'}
+    
+    if first_two_digits in valid_opcodes:
+        # This is a function code - add leading zero to both opcode and operand
+        opcode_3digit = '0' + first_two_digits  # 10 -> 010
+        operand_3digit = '0' + last_two_digits  # 25 -> 025
+        return f"{sign}{opcode_3digit}{operand_3digit}"
+    else:
+        # This is a raw number - prefix with 00 and keep all 4 digits
+        all_four_digits = instruction[1:]  # Get all 4 digits
+        return f"{sign}00{all_four_digits}"
 
 def read(tuple, input):
     """Read input and store in memory at given address."""
@@ -57,7 +111,9 @@ def read(tuple, input):
     if not input: # Check for empty string
         raise ValueError("Empty input for READ instruction")
     
-    if tuple[1] not in _programMemory:
+    address = tuple[1].zfill(3) # Normalize to 3 digits for 250 memory locations
+    
+    if address not in _programMemory:
         raise ValueError(f"Invalid memory address in READ: {tuple[1]}")
     
     length = len(input)
@@ -65,87 +121,99 @@ def read(tuple, input):
     if input[0] == "+" or input[0] == "-":
         if length > 5:
             input = input[0] + input[length - 4:]
-            _programMemory[tuple[1]] = input
+            _programMemory[address] = input
         elif length == 5:
-            _programMemory[tuple[1]] = input
+            _programMemory[address] = input
         else:
             input = input[0] + ("0" * (5 - length)) + input[1:]
-            _programMemory[tuple[1]] = input
+            _programMemory[address] = input
     else:             
         if length > 4:
             input = "+" + input[length - 4:]
-            _programMemory[tuple[1]] = input
+            _programMemory[address] = input
         elif length == 4:
             input = "+" + input
-            _programMemory[tuple[1]] = input
+            _programMemory[address] = input
         else:
             input = "+" + ("0" * (4 - length)) + input
-            _programMemory[tuple[1]] = input
+            _programMemory[address] = input
 
 def write(tuple):
     """Write value from memory at given address."""
-    # Takes parsed tuple
     _, address, _ = tuple
 
+    # Normalize address to 3 digits
+    address = address.zfill(3)
+    
     if address not in _programMemory:
-        raise ValueError(f"Invalid memory address in WRITE: {address}")
+        raise ValueError(f"Invalid memory address in WRITE: {tuple[1]}")
     
     # Executes write instruction
     return _programMemory[address]
 
 def load(tuple):
-    # Takes parsed tuple
-    # Executes load instruction
-    global _accumulator # Accessing global accumulator
-    global _programMemory # Accessing global program memory
+    """Load value from memory into accumulator."""
+    global _accumulator
+    global _programMemory
 
-    if tuple[1] not in _programMemory: # Checking if memory address exists
+    # Normalize address to 3 digits
+    address = tuple[1].zfill(3)
+    
+    if address not in _programMemory:
         raise ValueError(f"Invalid memory address in LOAD: '{tuple[1]}'")
     
-    _accumulator = _programMemory[tuple[1]] # Loading value from memory to accumulator
+    _accumulator = _programMemory[address]
     return
 
 def store(tuple):
-    # Takes parsed tuple
-    # Executes store instruction
-    global _accumulator # Accessing global accumulator
-    global _programMemory # Accessing global program memory
+    """Store accumulator value into memory."""
+    global _accumulator
+    global _programMemory
     
-    if tuple[1] not in _programMemory: # Checking if memory address exists
+    # Normalize address to 3 digits
+    address = tuple[1].zfill(3)
+    
+    if address not in _programMemory:
         raise ValueError(f"Invalid memory address in STORE: '{tuple[1]}'")
     
-    _programMemory[tuple[1]] = _accumulator # Storing value from accumulator to memory
+    _programMemory[address] = _accumulator
     return
 
 def add(tuple):
-    '''
-    Add the value stored in memory at the given address to the accumulator
+    """
+    Add the value stored in memory at the given address to the accumulator.
     Result is stored back in the accumulator.
-    '''
+    """
     global _accumulator
-    _, address, _ = tuple # Extract the memory address from the instruction
+    _, address, _ = tuple
 
-    if address not in _programMemory:
-        raise ValueError(f"Invalid memory address in ADD: '{address}'")
+    # Normalize address to 3 digits
+    address = address.zfill(3)
     
-    acc_val = int(_accumulator) # Covert accumulator string to integer
-    mem_val = int(_programMemory[address]) # Convert memory word to integer
+    if address not in _programMemory:
+        raise ValueError(f"Invalid memory address in ADD: '{tuple[1]}'")
+    
+    acc_val = int(_accumulator)
+    mem_val = int(_programMemory[address])
 
-    result = acc_val + mem_val # Perform Addition
+    result = acc_val + mem_val
 
     _accumulator = _overflow_value(result)
     return
 
 def subtract(tuple):
-    '''
+    """
     Subtract the value stored in memory from the accumulator.
     Result is stored back in the accumulator.
-    '''
+    """
     global _accumulator
     _, address, _ = tuple
 
+    # Normalize address to 3 digits
+    address = address.zfill(3)
+    
     if address not in _programMemory:
-        raise ValueError(f"Invalid memory address in SUBTRACT: '{address}'")
+        raise ValueError(f"Invalid memory address in SUBTRACT: '{tuple[1]}'")
 
     acc_val = int(_accumulator)
     mem_val = int(_programMemory[address])
@@ -156,15 +224,18 @@ def subtract(tuple):
     return
 
 def multiply(tuple):
-    '''
-    Multiple the value in the accumulator by the value stored in memory.
+    """
+    Multiply the value in the accumulator by the value stored in memory.
     Result is stored back in the accumulator.
-    '''
+    """
     global _accumulator
     _, address, _ = tuple
 
+    # Normalize address to 3 digits
+    address = address.zfill(3)
+    
     if address not in _programMemory:
-        raise ValueError(f"Invalid memory address in MULTIPLY: '{address}'")
+        raise ValueError(f"Invalid memory address in MULTIPLY: '{tuple[1]}'")
 
     acc_val = int(_accumulator)
     mem_val = int(_programMemory[address])
@@ -175,22 +246,24 @@ def multiply(tuple):
     return
 
 def divide(tuple):
-    '''
-    Divide the value in thea ccumulator by the value stored in memory.
+    """
+    Divide the value in the accumulator by the value stored in memory.
     Result is stored back in the accumulator.
-
     This currently uses floor division.
-    '''
+    """
     global _accumulator
     _, address, _ = tuple
 
+    # Normalize address to 3 digits
+    address = address.zfill(3)
+    
     if address not in _programMemory:
-        raise ValueError(f"Invalid memory address in DIVIDE: '{address}'")
+        raise ValueError(f"Invalid memory address in DIVIDE: '{tuple[1]}'")
     
     acc_val = int(_accumulator)
     mem_val = int(_programMemory[address])
 
-    if mem_val == 0: #Prevents a division by 0 error
+    if mem_val == 0:  # Prevents a division by 0 error
         raise ValueError("Division by zero error")
 
     result = acc_val // mem_val
@@ -202,10 +275,12 @@ def branch(tuple):
     """Unconditional branch: always set PC to operand."""
     global _programCounter
     address = tuple[1]
+    
+    # Validate address range (0-249 for 250 memory locations)
     if not address.isdigit() or not (0 <= int(address) <= 249):
         raise ValueError(f"Invalid branch address: '{address}'")
 
-    _programCounter = int(tuple[1])
+    _programCounter = int(address)
 
 def branchneg(tuple):
     """Branch if accumulator is negative."""
@@ -213,7 +288,10 @@ def branchneg(tuple):
     old_pc = _programCounter
     try:
         if int(_accumulator) < 0:
-            _programCounter = int(tuple[1])
+            address = tuple[1]
+            if not address.isdigit() or not (0 <= int(address) <= 249):
+                raise ValueError(f"Invalid branch address: '{address}'")
+            _programCounter = int(address)
     except ValueError:
         raise ValueError(f"Invalid accumulator value: {_accumulator}")
     return _programCounter != old_pc
@@ -227,8 +305,9 @@ def branchzero(tuple):
         address = tuple[1]
         if not address.isdigit() or not (0 <= int(address) <= 249):
             raise ValueError(f"Invalid branch address: '{address}'")
-        _programCounter = int(tuple[1])
+        _programCounter = int(address)
     return _programCounter != old_pc
+
 
 
 def main():
