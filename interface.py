@@ -14,8 +14,7 @@ Load File button will always add a tab. The program loads with no tabs initially
 The new tab becomes the 'active' tab - Kaleb
     Complete
 Test whether the reset, run, and edit functionality works only on the 'active' tab - Kaleb
-    No way Jose. The current program is only set to hold one file's worth of memory. 
-    I don't know enough about how the memory works in this to get multiple files together in one place.
+    Yup. Any other question, Jake?
 
 Close tab button opposite from Memory label, above the notebook - Lindsey 
 Close tab button removes the 'active' tab
@@ -130,8 +129,13 @@ class Window:
         # wait for 'ctrl+s'
         self.root.bind('<Control-s>', self.save_file)
 
-        # NEW
-        # Pack?
+        # Memory Manager initializer
+        self.memory_manager = core.MemoryManager(self)
+
+        # wait for tab switch
+        self.notebook.bind("<<NotebookTabChanged>>", self.memory_manager.switch_mem)
+
+        # Notebook Management
         self.notebook.place(x=700, y=60, width=550, height=620)
         self.close_tab_btn.place(x=1100, y=20)
 
@@ -461,6 +465,9 @@ class Window:
                         errors.append(f"Line {i + 1}: {str(e)}")
                         memory_index += 1
 
+            # Add _programMemory to the Memory Manager
+            self.memory_manager.add_mem_helper(core._programMemory)
+
             # Update display
             self.build_memory_table(core._programMemory, save_initial=True)
             self.current_filepath = filepath
@@ -560,6 +567,7 @@ class Window:
         """Close the currently selected tab window."""
         selected_tab = self.notebook.select()
         if selected_tab:
+            self.memory_manager.remove_mem_helper()
             self.notebook.forget(selected_tab)
 
         # Hide button if no tabs remain
@@ -725,7 +733,7 @@ class Window:
         core._accumulator = "+0000"
         core._programCounter = 0
         self.update_vars()
-        self.clear_system()
+        #self.clear_system()
 
     # --- Input handling ---
 
