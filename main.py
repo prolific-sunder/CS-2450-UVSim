@@ -6,6 +6,37 @@ _accumulator = "+0000"
 _programCounter = 0
 _programMemory = {}
 
+# --- Class to facilitate the management of Memory ---
+class MemoryManager:
+    def __init__(self, parent):
+        self.mem_dict = {}
+        self.parent = parent
+
+    def add_mem_helper(self, program_memory: dict):
+        curr_tab = self.parent.notebook.index(self.parent.notebook.select())
+        self.mem_dict[curr_tab] = program_memory
+
+    def remove_mem_helper(self):
+        try:
+            curr_tab = self.parent.notebook.index(self.parent.notebook.select())
+            self.mem_dict.pop(curr_tab)
+        except:
+            pass
+
+    def switch_mem(self, event):
+        # Find which tab has been selected, and load the appropriate memory into the core
+        try:
+            # if there is a tab, then find it
+            curr_tab = self.parent.notebook.index(self.parent.notebook.select())
+            print(curr_tab)
+            # load the memory core with the memory from the file
+            self.parent.initial_memory = self.mem_dict[curr_tab]
+
+            self.parent.reset_memory()
+        except:
+            # If there is no tab, it's because the last tab was closed
+            pass
+
 # --- Core instruction implementations ---
 def _overflow_value(value: int) -> str:
     """Truncate to signed four-digit word (keep last 4 digits)."""
