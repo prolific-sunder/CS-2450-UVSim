@@ -34,12 +34,17 @@ class Window:
         self.theme_btn = tk.Button(self.root, text="Theme Settings", width=12, height=4, command=self.open_theme_settings)
         self.theme_btn.grid(row=3, column=0, padx=20, pady=20)
         
-        self.help_label = tk.Label(self.root, text="Program Help", bg=self.primary_color, font=("Helvetica", 12))
-        self.help_label.grid(row=4, column=0, padx=20, pady=6)
-        self.help_btn1 = tk.Button(self.root, text="Program Use", width=12, command=self.show_program_instructions)
-        self.help_btn1.grid(row=5, column=0, padx=20, pady=6)
-        self.help_btn2 = tk.Button(self.root, text="How to Edit", width=12, command=self.show_edit_instructions)
-        self.help_btn2.grid(row=6, column=0, padx=20, pady=6)
+        self.help_btn = tk.Button(
+            self.root, 
+            text="?", 
+            width=2, 
+            height=1,
+            font=("Helvetica", 16, "bold"),
+            relief=tk.RAISED,
+            bd=2,
+            command=self.show_help_dialog
+        )
+        self.help_btn.place(relx=0, rely=1.0, x=20, y=-70, anchor="sw")
 
         self.title_label = tk.Label(self.root, text="UVSim", bg=self.primary_color, font=("Helvetica", 30))
         self.title_label.place(rely=1.0, relx=0, x=10, y=-5, anchor="sw")
@@ -63,7 +68,7 @@ class Window:
         self.vars_label = tk.Label(self.root, text="System Variables", bg=self.primary_color, font=("Helvetica", 18))
         self.vars_label.place(x=200, y=260)
         
-        self.varsState = tk.Label(self.root, text="Accumulator: +0000\nProgram Counter: 00", bg="white", font=("Helvetica", 12), width=50, height=3, anchor="nw")
+        self.varsState = tk.Label(self.root, text="Accumulator: +000000\nProgram Counter: 00", bg="white", font=("Helvetica", 12), width=50, height=3, anchor="nw")
         self.varsState.place(x=200, y=295)
 
         # --- User Console ---
@@ -99,9 +104,9 @@ class Window:
         self.memoryState.column("Location", width=80, anchor="center", stretch=False)
         self.memoryState.column("Item", width=400, anchor="w", stretch=False)
 
-        for i in range(100):
+        for i in range(250):
             tag = "even" if i % 2 == 0 else "odd"
-            self.memoryState.insert("", "end", values=(f"{i:02d}", "+0000"), tags=(tag,))
+            self.memoryState.insert("", "end", values=(f"{i:03d}", "+000000"), tags=(tag,))
         self.memoryState.tag_configure("even", background="#f7f7f7")
         self.memoryState.tag_configure("odd", background="#f0f0f0")
         
@@ -176,14 +181,13 @@ class Window:
         
         # Labels
         self.title_label.config(bg=self.primary_color, fg=primary_text)
-        self.help_label.config(bg=self.primary_color, fg=primary_text)
         self.log_label.config(bg=self.primary_color, fg=primary_text)
         self.vars_label.config(bg=self.primary_color, fg=primary_text)
         self.console_label.config(bg=self.primary_color, fg=primary_text)
         self.memory_label.config(bg=self.primary_color, fg=primary_text)
         
         # Buttons
-        for btn in [self.load_btn, self.run_btn, self.reset_btn, self.theme_btn, self.help_btn1, self.help_btn2]: btn.config(bg=self.secondary_color, fg=secondary_text)
+        for btn in [self.load_btn, self.run_btn, self.reset_btn, self.theme_btn, self.help_btn]: btn.config(bg=self.secondary_color, fg=secondary_text)
     
     def open_theme_settings(self):
         """Open simple color picker dialog."""
@@ -254,107 +258,97 @@ class Window:
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
         dialog.geometry(f"+{x}+{y}")
     
-    def show_program_instructions(self):
-        """Display help dialog."""
+    def show_help_dialog(self):
+        """Display help dialog with tabs."""
+        help_dialog = tk.Toplevel(self.root)
+        help_dialog.title("UVSim Help")
+        help_dialog.geometry("600x500")
+        
+        from tkinter import ttk
+        notebook = ttk.Notebook(help_dialog)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Tab 1: Program Use
+        tab1 = tk.Frame(notebook)
+        notebook.add(tab1, text="Program Use")
+        
+        text1 = tk.Text(tab1, wrap=tk.WORD, font=("Helvetica", 10))
+        text1.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
         instructions = """To use UVSim:
-        1. Load a Program:
-        - Click "Load File" and select a .txt program file
-        - Valid format: +1234, -0456, or 1234
 
-        2. Run the Program:
-        - Click "Run Program" to begin execution
-        - Watch System Messages for output
+1. Load a Program:
+   - Click "Load File" and select a .txt program file
+   - Valid formats: 4-digit (+1234) or 6-digit (+010234)
 
-        3. Provide Input:
-        - When prompted, type a 4-digit number
-        - Examples: +0045, -1234, or 0007
-        - Press Enter to submit
+2. Run the Program:
+   - Click "Run Program" to begin execution
+   - Watch System Messages for output
 
-        4. Monitor Execution:
-        - System Variables shows Accumulator and Program Counter
-        - Memory table shows all 100 memory locations
+3. Provide Input:
+   - When prompted, type a number in User Console
+   - Press Enter to submit
 
-        5. Other Options:
-        - Reset Program: Clear memory and restart
-        - Theme Settings: Customize colors
-        
-        BasicML Instruction Format:
-        - 4-digit signed numbers
-        - First 2 digits: opcode
-        - Last 2 digits: memory address
-        - Example: +1007 = READ into location 07"""
-        
-        dialog = tk.Toplevel(self.root)
-        dialog.title("UVSim Help")
-        dialog.geometry("550x450")
-        dialog.resizable(False, False)
-        dialog.transient(self.root)
-        dialog.grab_set()
-        
-        tk.Label(dialog, text="UVSim Instructions", font=("Helvetica", 18, "bold")).pack(pady=15)
-        
-        frame = tk.Frame(dialog)
-        frame.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
-        
-        scrollbar = tk.Scrollbar(frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11), 
-                             yscrollcommand=scrollbar.set, padx=10, pady=10)
-        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=text_widget.yview)
-        
-        text_widget.insert("1.0", instructions)
-        text_widget.config(state="disabled")
-        
-        tk.Button(dialog, text="Close", command=dialog.destroy, width=15, 
-                 font=("Helvetica", 11)).pack(pady=15)
-        
-        dialog.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
-        dialog.geometry(f"+{x}+{y}")
+4. Monitor Execution:
+   - System Variables shows Accumulator and Program Counter
+   - Memory table shows all 250 memory locations
 
-    def show_edit_instructions(self):
-        """Display help dialog."""
-        instructions = """Memory Table Editing Guide:
-• Double-click a memory cell to edit its value.
-• Right-click a row for Cut / Copy / Paste / Delete options.
-• Invalid entries are highlighted in red and listed in System Messages.
-• Selected memory cell is highlighted in white.
-• You can load, inspect, and modify memory before running the program.
-• Save your file by typing 'CTRL+S'"""
+5. Other Options:
+   - Reset Program: Clear memory and restart
+   - Theme Settings: Customize colors
+
+BasicML Instruction Formats:
+
+4-digit format: +XXYY (opcode XX, address 00-99)
+Example: +1007 = READ into location 07
+
+6-digit format: +0XXYYY (opcode 0XX, address 000-249)
+Example: +010025 = READ into location 025
+"""
+        text1.insert(1.0, instructions)
+        text1.config(state=tk.DISABLED)
         
-        dialog = tk.Toplevel(self.root)
-        dialog.title("Edit Help")
-        dialog.geometry("550x250")
-        dialog.resizable(False, False)
-        dialog.transient(self.root)
-        dialog.grab_set()
+        # Tab 2: How to Edit
+        tab2 = tk.Frame(notebook)
+        notebook.add(tab2, text="How to Edit")
         
-        tk.Label(dialog, text="Edit Instructions", font=("Helvetica", 18, "bold")).pack(pady=15)
+        text2 = tk.Text(tab2, wrap=tk.WORD, font=("Helvetica", 10))
+        text2.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        frame = tk.Frame(dialog)
-        frame.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
+        edit_text = """Memory Editor:
+
+Double-click any memory cell to edit
+Press Enter to save, Escape to cancel
+
+Keyboard Shortcuts:
+Ctrl+C - Copy
+Ctrl+X - Cut  
+Ctrl+V - Paste
+Delete - Clear selection
+Ctrl+S - Save program
+
+Right-click Menu:
+- Cut, Copy, Paste
+- Delete
+
+Valid Formats:
+4-digit: +1234, -0456, 1234
+6-digit: +010234, -043000, 010025
+
+Invalid instructions shown with red background
+"""
+        text2.insert(1.0, edit_text)
+        text2.config(state=tk.DISABLED)
         
-        scrollbar = tk.Scrollbar(frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        # Close button
+        tk.Button(help_dialog, text="Close", command=help_dialog.destroy, 
+                 width=15).pack(pady=10)
         
-        text_widget = tk.Text(frame, wrap=tk.WORD, font=("Helvetica", 11), 
-                             yscrollcommand=scrollbar.set, padx=10, pady=10)
-        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=text_widget.yview)
-        
-        text_widget.insert("1.0", instructions)
-        text_widget.config(state="disabled")
-        
-        tk.Button(dialog, text="Close", command=dialog.destroy, width=15, 
-                 font=("Helvetica", 11)).pack(pady=15)
-        
-        dialog.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
-        dialog.geometry(f"+{x}+{y}")
+        # Center dialog
+        help_dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (help_dialog.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (help_dialog.winfo_height() // 2)
+        help_dialog.geometry(f"+{x}+{y}")
 
     # --- File / Program execution ---
 
@@ -367,10 +361,10 @@ class Window:
 
             # Clear and initialize memory
             core._programMemory.clear()
-            for i in range(100):
-                core._programMemory[f"{i:02d}"] = "+0000"
+            for i in range(250):
+                core._programMemory[f"{i:03d}"] = "+000000"
 
-            core._accumulator = "+0000" # Reset accumulator
+            core._accumulator = "+000000" # Reset accumulator
             core._programCounter = 0 # Reset program counter
 
             # Read and validate file
@@ -378,36 +372,80 @@ class Window:
             line_count = 0
             memory_index = 0
 
+            # First pass: read all lines and detect format
+            lines = []
             with open(filepath, 'r') as f:
-                for i, line in enumerate(f):
-                    if memory_index >= 100:
-                        errors.append(f"Line {i+1}: File exceeds 100 lines")
-                        break
+                for line in f:
+                    lines.append(line)
+            
+            # Detect format by checking first non-empty, non-comment line
+            detected_format = None  # Will be '4-digit' or '6-digit'
+            for line in lines:
+                stripped = line.strip()
+                # Skip empty lines and comments
+                if not stripped or stripped.startswith('#'):
+                    continue
+                # Remove inline comments
+                if '#' in stripped:
+                    stripped = stripped.split('#')[0].strip()
+                if not stripped:
+                    continue
+                    
+                # Determine length (accounting for optional sign)
+                test_line = stripped if stripped[0] in ('+', '-') else '+' + stripped
+                if len(test_line) == 5:
+                    detected_format = '4-digit'
+                    break
+                elif len(test_line) == 7:
+                    detected_format = '6-digit'
+                    break
+            
+            # If 4-digit format detected, ask user if they want to convert
+            convert_to_6_digit = False
+            if detected_format == '4-digit':
+                convert_to_6_digit = messagebox.askyesno(
+                    "4-Digit Format Detected",
+                    "This file uses 4-digit instructions.\n\n"
+                    "Would you like to convert to 6-digit format?\n\n"
+                    "(6-digit format supports 250 memory locations)"
+                )
+                if convert_to_6_digit:
+                    self.write_system("Converting 4-digit instructions to 6-digit format...")
+            
+            # Second pass: load instructions into memory
+            for i, line in enumerate(lines):
+                if memory_index >= 250:
+                    errors.append(f"Line {i+1}: File exceeds 250 lines")
+                    break
 
-                    line = line.strip()
+                line = line.strip()
 
-                    # Skip empty lines and comments
-                    if not line or line.startswith('#'):
-                        continue
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
 
-                    # Remove inline comments
-                    if '#' in line:
-                        line = line.split('#')[0].strip()
+                # Remove inline comments
+                if '#' in line:
+                    line = line.split('#')[0].strip()
 
-                    if not line:
-                        continue
+                if not line:
+                    continue
+                
+                # Convert if requested
+                if convert_to_6_digit:
+                    line = core.convert_4_to_6_digit(line)
 
-                    # Validate instruction
-                    try:
-                        core.parse(line)
-                        core._programMemory[f"{memory_index:02d}"] = line
-                        line_count += 1
-                        memory_index += 1
-                    except Exception as e:
-                        # keep the invalid instruction in memory so user can edit it
-                        core._programMemory[f"{memory_index:02d}"] = line
-                        errors.append(f"Line {i+1}: {str(e)}")
-                        memory_index += 1
+                # Validate instruction
+                try:
+                    core.parse(line)
+                    core._programMemory[f"{memory_index:03d}"] = line
+                    line_count += 1
+                    memory_index += 1
+                except Exception as e:
+                    # keep the invalid instruction in memory so user can edit it
+                    core._programMemory[f"{memory_index:03d}"] = line
+                    errors.append(f"Line {i+1}: {str(e)}")
+                    memory_index += 1
 
             # Update display
             self.build_memory_table(core._programMemory, save_initial=True)
@@ -486,8 +524,8 @@ class Window:
                 if not self._validate_instruction(new_val):
                     messagebox.showerror("Invalid Entry", f"'{new_val}' is not a valid instruction format.")
                 else:
-                    self.memoryState.item(item, values=(f"{index:02d}", new_val))
-                    core._programMemory[f"{index:02d}"] = new_val
+                    self.memoryState.item(item, values=(f"{index:03d}", new_val))
+                    core._programMemory[f"{index:03d}"] = new_val
                 edit_box.destroy()
 
             edit_box.bind("<Return>", save_edit)
@@ -515,8 +553,8 @@ class Window:
         self._copy_selection()
         for i in self.memoryState.selection():
             index = int(self.memoryState.item(i, "values")[0])
-            self.memoryState.item(i, values=(f"{index:02d}", "+0000"))
-            core._programMemory[f"{index:02d}"] = "+0000"
+            self.memoryState.item(i, values=(f"{index:03d}", "+000000"))
+            core._programMemory[f"{index:03d}"] = "+000000"
 
     def _paste_selection(self, event=None):
         """Paste clipboard contents starting from first selected row."""
@@ -527,30 +565,30 @@ class Window:
 
         for offset, line in enumerate(pasted):
             idx = start_index + offset
-            if idx >= 100:
-                messagebox.showwarning("Paste Limit", "Reached max memory size (100).")
+            if idx >= 250:
+                messagebox.showwarning("Paste Limit", "Reached max memory size (250).")
                 break
             if self._validate_instruction(line):
-                self.memoryState.item(self.memoryState.get_children()[idx], values=(f"{idx:02d}", line))
-                core._programMemory[f"{idx:02d}"] = line
+                self.memoryState.item(self.memoryState.get_children()[idx], values=(f"{idx:03d}", line))
+                core._programMemory[f"{idx:03d}"] = line
 
     def _delete_selection(self, event=None):
         """Delete (clear) selected memory rows."""
         for i in self.memoryState.selection():
             index = int(self.memoryState.item(i, "values")[0])
-            self.memoryState.item(i, values=(f"{index:02d}", "+0000"))
-            core._programMemory[f"{index:02d}"] = "+0000"
+            self.memoryState.item(i, values=(f"{index:03d}", "+000000"))
+            core._programMemory[f"{index:03d}"] = "+000000"
 
     def _add_entry(self):
         """Add a blank new memory line if space allows."""
         current_count = len(self.memoryState.get_children())
-        if current_count >= 100:
-            messagebox.showwarning("Memory Full", "Maximum of 100 entries allowed.")
+        if current_count >= 250:
+            messagebox.showwarning("Memory Full", "Maximum of 250 entries allowed.")
             return
         new_index = current_count
-        self.memoryState.insert("", "end", values=(f"{new_index:02d}", "+0000"))
-        core._programMemory[f"{new_index:02d}"] = "+0000"
-        self.write_system(f"Added new memory entry at {new_index:02d}.")
+        self.memoryState.insert("", "end", values=(f"{new_index:03d}", "+000000"))
+        core._programMemory[f"{new_index:03d}"] = "+000000"
+        self.write_system(f"Added new memory entry at {new_index:03d}.")
 
     def _show_context_menu(self, event):
         """Display right-click context menu."""
@@ -601,9 +639,9 @@ class Window:
 
         for row in self.memoryState.get_children():
             self.memoryState.delete(row)
-        for i in range(100):
-            loc = f"{i:02d}"
-            item = memory_dict.get(loc, "+0000")
+        for i in range(250):
+            loc = f"{i:03d}"
+            item = memory_dict.get(loc, "+000000")
             tag = "even" if i % 2 == 0 else "odd"
             # if invalid instruction, mark invalid tag
             try:
@@ -620,9 +658,9 @@ class Window:
 
         # only update rows that changed
         children = self.memoryState.get_children()
-        for i in range(100):
-            loc = f"{i:02d}"
-            new_val = memory_dict.get(loc, "+0000")
+        for i in range(250):
+            loc = f"{i:03d}"
+            new_val = memory_dict.get(loc, "+000000")
 
             # get current value in Treeview
             item_id = children[i]
@@ -640,9 +678,9 @@ class Window:
     def update_vars(self):
         """Update the Accumulator / Program Counter label from core variables."""
 
-        acc = getattr(core, "_accumulator", "+0000")
+        acc = getattr(core, "_accumulator", "+000000")
         pc = getattr(core, "_programCounter", 0)
-        self.varsState.config(text=f"Accumulator: {acc}\nProgram Counter: {pc:02d}")
+        self.varsState.config(text=f"Accumulator: {acc}\nProgram Counter: {pc:03d}")
 
     def reset_memory(self):
         """Resets all aspects of memory and system. Interacts with core (main module) and changes protected variables. Calls update_vars and clear_system"""
@@ -655,7 +693,7 @@ class Window:
         self.build_memory_table(core._programMemory, save_initial=False)
 
         # Reset Accumulator and Program Counter
-        core._accumulator = "+0000"
+        core._accumulator = "+000000"
         core._programCounter = 0
         self.update_vars()
         self.clear_system()
@@ -704,9 +742,9 @@ class Window:
         if new_val is None:
             return
         new_val = new_val.strip()
-        # accept empty to be treated as +0000
+        # accept empty to be treated as +000000
         if new_val == '':
-            new_val = "+0000"
+            new_val = "+000000"
         # update core memory and the treeview with validation
         core._programMemory[loc] = new_val
         try:
@@ -761,8 +799,8 @@ class Window:
             loc, val = self.memoryState.item(item_id, 'values')
             self.clipboard.append(val)
             # remove and shift everything below up
-            # set this location to +0000 and shift subsequent down to keep 100 entries
-            core._programMemory[loc] = "+0000"
+            # set this location to +000000 and shift subsequent down to keep 250 entries
+            core._programMemory[loc] = "+000000"
         # Rebuild view from core memory
         self.build_memory_table(core._programMemory)
         self.write_system(f"Cut {len(self.clipboard)} item(s)")
@@ -777,35 +815,35 @@ class Window:
         else:
             # if nothing selected, paste at first free or at 0
             start_idx = 0
-        # ensure we do not exceed 100 entries
-        available = 100 - start_idx
+        # ensure we do not exceed 250 entries
+        available = 250 - start_idx
         data_to_paste = list(self.clipboard)
         if len(data_to_paste) > available:
             data_to_paste = data_to_paste[:available]
-            messagebox.showwarning("Paste", "Pasted data was truncated to fit memory (100 entries max).")
+            messagebox.showwarning("Paste", "Pasted data was truncated to fit memory (250 entries max).")
         # shift existing entries down to make room
         # work from bottom up to avoid overwriting
-        for i in range(99, start_idx + len(data_to_paste) - 1, -1):
-            src = f"{max(0, i - len(data_to_paste)):02d}"
-            dst = f"{i:02d}"
-            core._programMemory[dst] = core._programMemory.get(src, "+0000")
+        for i in range(249, start_idx + len(data_to_paste) - 1, -1):
+            src = f"{max(0, i - len(data_to_paste)):03d}"
+            dst = f"{i:03d}"
+            core._programMemory[dst] = core._programMemory.get(src, "+000000")
         # insert pasted data
         for offset, val in enumerate(data_to_paste):
-            core._programMemory[f"{start_idx + offset:02d}"] = val
+            core._programMemory[f"{start_idx + offset:03d}"] = val
         self.build_memory_table(core._programMemory)
-        self.write_system(f"Pasted {len(data_to_paste)} item(s) at {start_idx:02d}")
+        self.write_system(f"Pasted {len(data_to_paste)} item(s) at {start_idx:03d}")
 
     def add_instruction(self):
-        # append at end (first +0000 from top)
+        # append at end (first +000000 from top)
         children = list(self.memoryState.get_children())
         for i, item_id in enumerate(children):
             loc, val = self.memoryState.item(item_id, 'values')
-            if val == "+0000":
+            if val == "+000000":
                 # edit this one
                 self.memoryState.selection_set(item_id)
                 self.on_double_click(type('E', (), {'x':0,'y':self.memoryState.bbox(item_id)[1]}))
                 return
-        messagebox.showinfo("Add", "Memory is full (100 entries).")
+        messagebox.showinfo("Add", "Memory is full (250 entries).")
 
     def insert_instruction(self):
         # insert before selected row, shift others down
@@ -815,18 +853,18 @@ class Window:
         else:
             idx = sel[0][0]
         # if no space to shift
-        if idx >= 100:
+        if idx >= 250:
             messagebox.showinfo("Insert", "Cannot insert beyond memory limit.")
             return
         # check space
         # if last cell non-empty and would be pushed out, warn
-        if core._programMemory.get('99', '+0000') != '+0000':
+        if core._programMemory.get('249', '+000000') != '+000000':
             if not messagebox.askyesno("Insert", "Inserting will drop the last memory entry. Continue?"):
                 return
         # shift down from bottom to idx
-        for i in range(99, idx, -1):
-            core._programMemory[f"{i:02d}"] = core._programMemory.get(f"{i-1:02d}", "+0000")
-        core._programMemory[f"{idx:02d}"] = "+0000"
+        for i in range(249, idx, -1):
+            core._programMemory[f"{i:03d}"] = core._programMemory.get(f"{i-1:03d}", "+000000")
+        core._programMemory[f"{idx:03d}"] = "+000000"
         self.build_memory_table(core._programMemory)
         # let user edit the new slot
         item_id = self.memoryState.get_children()[idx]
@@ -839,12 +877,12 @@ class Window:
             messagebox.showinfo("Delete", "No selection to delete.")
             return
         children = list(self.memoryState.get_children())
-        # set selected indices to +0000 and shift subsequent up
+        # set selected indices to +000000 and shift subsequent up
         indices = [i for i, _ in sel]
         for idx in sorted(indices):
-            for j in range(idx, 99):
-                core._programMemory[f"{j:02d}"] = core._programMemory.get(f"{j+1:02d}", "+0000")
-            core._programMemory['99'] = "+0000"
+            for j in range(idx, 249):
+                core._programMemory[f"{j:03d}"] = core._programMemory.get(f"{j+1:03d}", "+000000")
+            core._programMemory['249'] = "+000000"
         self.build_memory_table(core._programMemory)
         self.write_system(f"Deleted {len(indices)} row(s)")
 
@@ -853,14 +891,14 @@ class Window:
         errors = []
         children = list(self.memoryState.get_children())
         for i, item_id in enumerate(children):
-            loc = f"{i:02d}"
+            loc = f"{i:03d}"
             val = self.memoryState.item(item_id, 'values')[1]
-            # empty treat as +0000
+            # empty treat as +000000
             if val == '' or val is None:
-                val = "+0000"
+                val = "+000000"
             core._programMemory[loc] = val
-            # skip default +0000
-            if val in ("+0000", "0000"):
+            # skip default +000000
+            if val in ("+000000", "000000"):
                 continue
             try:
                 core.parse(val)
@@ -906,10 +944,10 @@ class Window:
         if not path:
             return
         try:
-            lines = [core._programMemory.get(f"{i:02d}", "+0000") for i in range(100)]
+            lines = [core._programMemory.get(f"{i:03d}", "+000000") for i in range(250)]
             last = -1
             for i, val in enumerate(lines):
-                if val != "+0000":
+                if val != "+000000":
                     last = i
             write_lines = [] if last == -1 else lines[: last + 1]
             with open(path, "w", encoding="utf-8") as f:
@@ -931,11 +969,11 @@ class Window:
         core._programCounter = 0
 
         try:
-            while core._programCounter < 100:
-                instr = core._programMemory.get(f"{core._programCounter:02d}", "+0000")
+            while core._programCounter < 250:
+                instr = core._programMemory.get(f"{core._programCounter:03d}", "+0000")
 
                 # Skip empty memory
-                if instr == "+0000" or instr == "0000":
+                if instr == "+000000" or instr == "000000":
                     core._programCounter += 1
                     continue
 
@@ -944,7 +982,7 @@ class Window:
                     tuple_instr = core.parse(instr)
                     opcode = tuple_instr[0]
                 except Exception as e:
-                    self.write_system(f"Parse Error at line {core._programCounter:02d}: {str(e)}")
+                    self.write_system(f"Parse Error at line {core._programCounter:03d}: {str(e)}")
                     self.write_system("Program halted")
                     return
 
@@ -981,10 +1019,10 @@ class Window:
                         self.write_system("Program halted normally")
                         break
                     else:
-                        self.write_system(f"Warning: Unknown opcode '{opcode}' at line {core._programCounter:02d}")
+                        self.write_system(f"Warning: Unknown opcode '{opcode}' at line {core._programCounter:03d}")
 
                 except Exception as e:
-                    self.write_system(f"Runtime Error at line {core._programCounter:02d}: {str(e)}")
+                    self.write_system(f"Runtime Error at line {core._programCounter:03d}: {str(e)}")
                     self.write_system("Program halted")
                     return
 

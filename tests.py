@@ -26,199 +26,308 @@ class TestThemeManagement:
         assert result == 'white', "Dark background should return white text"
 
 class TestLoadStore:
-    # Test cases for main.py functions
+    """Test cases for main.py functions"""
+
     def setup_method(self):
         """Reset globals before each test"""
         main._accumulator = "+0000"
-        main._programMemory = {f"{i:02d}": "+0000" for i in range(100)}
+        main._programMemory = {f"{i:03d}": "+0000" for i in range(250)}  # Changed to 3 digits and 250 locations
         main._programCounter = 0
     
     def test_store_pass(self):
         """Test storing a value to a valid memory address"""
-        main._accumulator = "+0010"  # Setting accumulator value
-        main._programMemory = {"00": "+0000", "01": "+0000"}  # Initializing program memory
-        main.store(("21", "01", "+2101"))  # Storing accumulator value to memory address 01
-        assert main._programMemory["01"] == "+0010"  # Asserting memory address 01 has the correct value
+        main._accumulator = "+0010"
+        main._programMemory = {"000": "+0000", "001": "+0000"}  # Changed to 3-digit addresses
+        main.store(("21", "001", "+021001"))  # Updated instruction format
+        assert main._programMemory["001"] == "+0010"
     
     def test_store_fail(self):
         """Test storing a value to an invalid memory address"""
-        main._accumulator = "+0010"  # Setting accumulator value
-        main._programMemory = {"00": "+0000", "01": "+0000"}  # Initializing program memory
-        with pytest.raises(ValueError) as e:  # Expecting ValueError for invalid memory address
-            main.store(("21", "bad", "+21bad"))  # Attempting to store to an invalid memory address
-        assert "Invalid memory address in STORE" in str(e.value)  # Asserting the error message
+        main._accumulator = "+0010"
+        main._programMemory = {"000": "+0000", "001": "+0000"}  # Changed to 3-digit addresses
+        with pytest.raises(ValueError) as e:
+            main.store(("21", "bad", "+021bad"))
+        assert "Invalid memory address in STORE" in str(e.value)
     
     def test_load_pass(self):
         """Test loading a value from a valid memory address"""
-        main._programMemory = {"00": "+0010", "01": "+0000"}  # Initializing program memory
-        main._accumulator = "+0000"  # Setting accumulator value
-        main.load(("20", "00", "+2000"))  # Loading value from memory address 00 to accumulator
-        assert main._accumulator == "+0010"  # Asserting accumulator has the correct value
+        main._programMemory = {"000": "+0010", "001": "+0000"}  # Changed to 3-digit addresses
+        main._accumulator = "+0000"
+        main.load(("20", "000", "+020000"))  # Updated instruction format
+        assert main._accumulator == "+0010"
     
     def test_load_fail(self):
         """Test loading a value from an invalid memory address"""
-        main._programMemory = {"00": "+0010", "01": "+0000"}  # Initializing program memory
-        main._accumulator = "+0000"  # Setting accumulator value
-        with pytest.raises(ValueError) as e:  # Expecting ValueError for invalid memory address
-            main.load(("20", "bad", "+20bad"))  # Attempting to load from an invalid memory address
-        assert "Invalid memory address in LOAD" in str(e.value)  # Asserting the error message
+        main._programMemory = {"000": "+0010", "001": "+0000"}  # Changed to 3-digit addresses
+        main._accumulator = "+0000"
+        with pytest.raises(ValueError) as e:
+            main.load(("20", "bad", "+020bad"))
+        assert "Invalid memory address in LOAD" in str(e.value)
 
 class TestReadWrite:
     """Tests I/O operations for main.py"""
     def setup_method(self):
-        main._programMemory = {f"{i:02d}": "+0000" for i in range(100)}
+        main._programMemory = {f"{i:03d}": "+0000" for i in range(250)}  # Changed to 3 digits and 250 locations
 
     ## READ TESTS
     def test_read_pass(self, monkeypatch):
-        main.read(("10", "00", "+1000"), "10")
-        assert main._programMemory["00"] == "+0010"
+        main.read(("10", "000", "+010000"), "10")  # Updated instruction format
+        assert main._programMemory["000"] == "+0010"
 
     def test_read_fail(self, monkeypatch):
-        main.read(("10", "99", "+1099"), "200")
-        assert main._programMemory["99"] == "+0200"
+        main.read(("10", "099", "+010099"), "200")  # Updated instruction format
+        assert main._programMemory["099"] == "+0200"
 
     def test_read_error(self, monkeypatch):
         # Test None input
         with pytest.raises(ValueError, match="No input provided for READ instruction"):
-            main.read(("10", "99", "+1099"), None)
+            main.read(("10", "099", "+010099"), None)  # Updated instruction format
 
         # Test empty input
         with pytest.raises(ValueError, match="Empty input for READ instruction"):
-            main.read(("10", "99", "+1099"), "  ")
+            main.read(("10", "099", "+010099"), "  ")  # Updated instruction format
 
         # Test invalid memory address
         with pytest.raises(ValueError, match="Invalid memory address in READ"):
-            main.read(("10", "XX", "+10XX"), "100")
+            main.read(("10", "XXX", "+010XXX"), "100")  # Updated instruction format
 
     ### WRITE TESTS
     def test_write_pass(self, capsys):
-        main._programMemory["33"] = "+0015"
-        value = main.write(("11", "33", "+1033"))
+        main._programMemory["033"] = "+0015"  # Changed to 3-digit address
+        value = main.write(("11", "033", "+011033"))  # Updated instruction format
         assert value == "+0015"
 
     def test_write_fail(self, capsys):
-        main._programMemory["66"] = "+0000"
-        value = main.write(("11", "66", "+1066"))
+        main._programMemory["066"] = "+0000"  # Changed to 3-digit address
+        value = main.write(("11", "066", "+011066"))  # Updated instruction format
         assert value == "+0000"
-        main._programMemory["66"] = "+0001"  # Change after write to verify write captured original value
+        main._programMemory["066"] = "+0001"  # Change after write to verify write captured original value
 
 class TestArithmetic:
+    """Tests for arithmetic operations in main.py"""
+
     def setup_method(self):
         """Reset globals before each test"""
         main._accumulator = "+0000"
-        main._programMemory = {f"{i:02d}": "+0000" for i in range(100)}
+        main._programMemory = {f"{i:03d}": "+0000" for i in range(250)}  # Changed to 3 digits and 250 locations
         main._programCounter = 0
 
     # ADD TESTS 
     def test_add_positive(self):
         main._accumulator = "+0007"
-        main._programMemory["09"] = "+0005"
-        main.add(("30", "09", "+3009"))
+        main._programMemory["009"] = "+0005"  # Changed to 3-digit address
+        main.add(("30", "009", "+030009"))  # Updated instruction format
         assert main._accumulator == "+0012"
 
     def test_add_negative(self):
         main._accumulator = "-0007"
-        main._programMemory["09"] = "+0005"
-        main.add(("30", "09", "+3009"))
+        main._programMemory["009"] = "+0005"  # Changed to 3-digit address
+        main.add(("30", "009", "+030009"))  # Updated instruction format
         assert main._accumulator == "-0002"
 
     def test_add_zero(self):
         main._accumulator = "+0000"
-        main._programMemory["01"] = "+0000"
-        main.add(("30", "01", "+3001"))
+        main._programMemory["001"] = "+0000"  # Changed to 3-digit address
+        main.add(("30", "001", "+030001"))  # Updated instruction format
         assert main._accumulator == "+0000"
 
     # SUBTRACT TESTS 
     def test_subtract_positive(self):
         main._accumulator = "+0010"
-        main._programMemory["02"] = "+0003"
-        main.subtract(("31", "02", "+3102"))
+        main._programMemory["002"] = "+0003"  # Changed to 3-digit address
+        main.subtract(("31", "002", "+031002"))  # Updated instruction format
         assert main._accumulator == "+0007"
 
     def test_subtract_negative_result(self):
         main._accumulator = "+0003"
-        main._programMemory["02"] = "+0010"
-        main.subtract(("31", "02", "+3102"))
+        main._programMemory["002"] = "+0010"  # Changed to 3-digit address
+        main.subtract(("31", "002", "+031002"))  # Updated instruction format
         assert main._accumulator == "-0007"
 
     def test_subtract_with_negative_operand(self):
         main._accumulator = "+0005"
-        main._programMemory["02"] = "-0003"
-        main.subtract(("31", "02", "+3102"))
+        main._programMemory["002"] = "-0003"  # Changed to 3-digit address
+        main.subtract(("31", "002", "+031002"))  # Updated instruction format
         assert main._accumulator == "+0008"
 
     # MULTIPLY TESTS 
     def test_multiply_positive(self):
         main._accumulator = "+0004"
-        main._programMemory["03"] = "+0003"
-        main.multiply(("33", "03", "+3303"))
+        main._programMemory["003"] = "+0003"  # Changed to 3-digit address
+        main.multiply(("33", "003", "+033003"))  # Updated instruction format
         assert main._accumulator == "+0012"
 
     def test_multiply_negative(self):
         main._accumulator = "-0004"
-        main._programMemory["03"] = "+0003"
-        main.multiply(("33", "03", "+3303"))
+        main._programMemory["003"] = "+0003"  # Changed to 3-digit address
+        main.multiply(("33", "003", "+033003"))  # Updated instruction format
         assert main._accumulator == "-0012"
 
     def test_multiply_by_zero(self):
         main._accumulator = "+0009"
-        main._programMemory["03"] = "+0000"
-        main.multiply(("33", "03", "+3303"))
+        main._programMemory["003"] = "+0000"  # Changed to 3-digit address
+        main.multiply(("33", "003", "+033003"))  # Updated instruction format
         assert main._accumulator == "+0000"
 
     # DIVIDE TESTS
     def test_divide_positive(self):
         main._accumulator = "+0012"
-        main._programMemory["04"] = "+0003"
-        main.divide(("32", "04", "+3204"))
+        main._programMemory["004"] = "+0003"  # Changed to 3-digit address
+        main.divide(("32", "004", "+032004"))  # Updated instruction format
         assert main._accumulator == "+0004"
 
     def test_divide_negative(self):
         main._accumulator = "-0012"
-        main._programMemory["04"] = "+0003"
-        main.divide(("32", "04", "+3204"))
+        main._programMemory["004"] = "+0003"  # Changed to 3-digit address
+        main.divide(("32", "004", "+032004"))  # Updated instruction format
         assert main._accumulator == "-0004"
 
     def test_divide_by_zero(self):
         main._accumulator = "+0010"
-        main._programMemory["04"] = "+0000"
+        main._programMemory["004"] = "+0000"  # Changed to 3-digit address
         with pytest.raises(Exception) as e:
-            main.divide(("32", "04", "+3204"))
+            main.divide(("32", "004", "+032004"))  # Updated instruction format
         assert "Division by zero" in str(e.value)
 
 class TestBranch:
+    """Tests for branching operations in main.py"""
+
+    def setup_method(self):
+        """Reset globals before each test"""
+        main._accumulator = "+0000"
+        main._programMemory = {f"{i:03d}": "+0000" for i in range(250)}  # Changed to 3 digits and 250 locations
+        main._programCounter = 0
+    
     # BRANCH TESTS
     def test_branch(self):
-        main._programMemory["12"] = "+0012"
-        main.branch(("40", "12", "+4012"))
+        main._programMemory["012"] = "+0012"  # Changed to 3-digit address
+        main.branch(("40", "012", "+040012"))  # Updated instruction format
         assert main._programCounter == 12  # Branch to exact address
 
     def test_branch_neg(self):
-        main._programMemory["13"] = "+0013"
+        main._programMemory["013"] = "+0013"  # Changed to 3-digit address
         main._accumulator = "-0001"
-        main.branchneg(("41", "13", "+4013"))
+        main.branchneg(("41", "013", "+041013"))  # Updated instruction format
         assert main._programCounter == 13  # Branch when accumulator is negative
 
     def test_branch_neg_false(self):
-        main._programMemory["14"] = "+0014"
+        main._programMemory["014"] = "+0014"  # Changed to 3-digit address
         main._accumulator = "+0000"  # Not negative
         main._programCounter = 5  # Set initial position
-        main.branchneg(("41", "14", "+4114"))
+        main.branchneg(("41", "014", "+041014"))  # Updated instruction format
         assert main._programCounter == 5  # Should not branch
 
     def test_branch_zero(self):
-        main._programMemory["15"] = "+0015"
+        main._programMemory["015"] = "+0015"  # Changed to 3-digit address
         main._accumulator = "+0000"
-        main.branchzero(("42", "15", "+4215"))
+        main.branchzero(("42", "015", "+042015"))  # Updated instruction format
         assert main._programCounter == 15  # Branch when accumulator is zero
 
     def test_branch_zero_false(self):
-        main._programMemory["16"] = "+0016"
+        main._programMemory["016"] = "+0016"  # Changed to 3-digit address
         main._accumulator = "+0001"  # Not zero
         main._programCounter = 5  # Set initial position
-        main.branchzero(("42", "16", "+4216"))
+        main.branchzero(("42", "016", "+042016"))  # Updated instruction format
         assert main._programCounter == 5  # Should not branch
+
+class TestParse:
+    """Tests for parsing both 4-digit and 6-digit instructions"""
+    
+    def test_parse_4digit_read(self):
+        result = main.parse("+1025")
+        assert result == ("10", "25", "+1025")
+    
+    def test_parse_6digit_read(self):
+        result = main.parse("+010025")
+        assert result == ("10", "025", "+010025")
+    
+    def test_parse_4digit_halt(self):
+        result = main.parse("+4300")
+        assert result == ("43", "00", "+4300")
+    
+    def test_parse_6digit_halt(self):
+        result = main.parse("+043000")
+        assert result == ("43", "000", "+043000")
+    
+    def test_parse_without_sign(self):
+        result = main.parse("1025")
+        assert result == ("10", "25", "+1025")
+    
+    def test_parse_6digit_extended_address(self):
+        result = main.parse("+010150")
+        assert result == ("10", "150", "+010150")
+
+class TestConvert:
+    """Tests for 4-digit to 6-digit conversion"""
+    
+    def test_convert_read_instruction(self):
+        result = main.convert_4_to_6_digit("+1025")
+        assert result == "+010025"
+    
+    def test_convert_halt_instruction(self):
+        result = main.convert_4_to_6_digit("+4300")
+        assert result == "+043000"
+    
+    def test_convert_raw_number(self):
+        result = main.convert_4_to_6_digit("+5555")
+        assert result == "+005555"
+    
+    def test_convert_all_opcodes(self):
+        test_cases = [
+            ("+1025", "+010025"),  # READ
+            ("+1125", "+011025"),  # WRITE
+            ("+2025", "+020025"),  # LOAD
+            ("+2125", "+021025"),  # STORE
+            ("+3025", "+030025"),  # ADD
+            ("+3125", "+031025"),  # SUBTRACT
+            ("+3225", "+032025"),  # DIVIDE
+            ("+3325", "+033025"),  # MULTIPLY
+            ("+4025", "+040025"),  # BRANCH
+            ("+4125", "+041025"),  # BRANCHNEG
+            ("+4225", "+042025"),  # BRANCHZERO
+            ("+4300", "+043000"),  # HALT
+        ]
+        for input_val, expected in test_cases:
+            assert main.convert_4_to_6_digit(input_val) == expected
+    
+    def test_convert_invalid_opcodes(self):
+        """Test that invalid opcodes are treated as raw numbers"""
+        test_cases = [
+            ("+0099", "+000099"),
+            ("+1234", "+001234"),  # 12 is not a valid opcode
+            ("+5555", "+005555"),
+            ("+9999", "+009999"),
+        ]
+        for input_val, expected in test_cases:
+            assert main.convert_4_to_6_digit(input_val) == expected
+
+class TestExtendedMemory:
+    """Tests for extended memory addresses (100-249)"""
+    
+    def setup_method(self):
+        """Reset globals before each test"""
+        main._accumulator = "+0000"
+        main._programMemory = {f"{i:03d}": "+0000" for i in range(250)}
+        main._programCounter = 0
+    
+    def test_load_from_extended_address(self):
+        main._programMemory["150"] = "+1234"
+        main.load(("20", "150", "+020150"))
+        assert main._accumulator == "+1234"
+    
+    def test_store_to_extended_address(self):
+        main._accumulator = "+5678"
+        main.store(("21", "200", "+021200"))
+        assert main._programMemory["200"] == "+5678"
+    
+    def test_branch_to_extended_address(self):
+        main.branch(("40", "150", "+040150"))
+        assert main._programCounter == 150
+    
+    def test_read_to_extended_address(self):
+        main.read(("10", "225", "+010225"), "+9999")
+        assert main._programMemory["225"] == "+9999"
 
 if __name__ == "__main__":
     # Run the tests
-    pytest.main([__file__, "-v"]) # Verbose output
+    pytest.main([__file__, "-v"])  # Verbose output
