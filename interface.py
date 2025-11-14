@@ -137,7 +137,7 @@ class Window:
 
         # Notebook Management
         self.notebook.place(x=700, y=60, width=550, height=620)
-        self.close_tab_btn.place(x=1100, y=20)
+        self.close_tab_btn.place(x=1123, y=32)
 
         # Apply initial theme
         self.apply_theme()
@@ -1075,3 +1075,4 @@ class Window:
         except Exception as e:
             self.write_system(f"Fatal Error: {str(e)}")
             self.write_system("Program terminated")
+
