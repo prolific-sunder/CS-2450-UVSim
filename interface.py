@@ -18,7 +18,6 @@ class Window:
         self.root.configure(background=self.primary_color)
         self.root.geometry(size)
 
-        # NEW CODE
         # Notebook
         self.notebook = ttk.Notebook(self.root)
         self.notebook.place(x=700, y=60, width=550, height=620)
@@ -60,8 +59,6 @@ class Window:
         self.divider.grid(row=0, column=2, rowspan=50, padx=10)
 
         # --- NEW BUTTON TO CLOSE ACTIVE TAB --- new code
-
-        # Place above the notebook, to the right
         self.close_tab_btn = tk.Button(
             self.root,
             text="Close Tab",
@@ -69,7 +66,7 @@ class Window:
             height=1,
             command=self.close_tab
         )
-        self.close_tab_btn.place(x=1200, y=30)  # Adjust x/y as needed for spacing
+        self.close_tab_btn.place(x=1200, y=30)  
 
         if not self.notebook.tabs():
             self.close_tab_btn.place_forget()
@@ -345,7 +342,6 @@ Invalid instructions shown with red background
         help_dialog.geometry(f"+{x}+{y}")
 
     # --- File / Program execution ---
-    #New also close tabe and mem thing
     def load_file(self):
         """Safely load a program file. If anything is invalid, show an error and abort cleanly."""
         try:
@@ -357,9 +353,6 @@ Invalid instructions shown with red background
             if not filepath:
                 return  # User cancelled
 
-            # -------------------------------------------------------
-            # 1. READ FILE SAFELY
-            # -------------------------------------------------------
             try:
                 with open(filepath, "r") as f:
                     raw_lines = f.readlines()
@@ -367,9 +360,6 @@ Invalid instructions shown with red background
                 messagebox.showerror("Load File Error", f"Unable to read file:\n{str(e)}")
                 return
 
-            # -------------------------------------------------------
-            # 2. VALIDATE FILE COMPLETELY *BEFORE TOUCHING UI*
-            # -------------------------------------------------------
             parsed_program = []
             errors = []
             detected_format = None
@@ -432,7 +422,7 @@ Invalid instructions shown with red background
                     core.parse(line)
                 except Exception as e:
                     errors.append(f"Line {i + 1}: {str(e)}")
-                    line = "+000000"  # Fail-safe
+                    line = "+000000" 
 
                 parsed_program.append(line)
                 mem_index += 1
@@ -444,10 +434,6 @@ Invalid instructions shown with red background
                     "The file does not contain any valid instructions."
                 )
                 return
-
-            # -------------------------------------------------------
-            # 3. ONLY NOW BUILD THE UI TAB (safe phase)
-            # -------------------------------------------------------
 
             tab = ttk.Frame(self.notebook)
             filename = os.path.basename(filepath)
@@ -487,10 +473,6 @@ Invalid instructions shown with red background
             self.memoryState.tag_configure("even", background="#f7f7f7")
             self.memoryState.tag_configure("odd", background="#f0f0f0")
 
-            # -------------------------------------------------------
-            # 4. WRITE PROGRAM TO CORE MEMORY SAFELY
-            # -------------------------------------------------------
-
             core._programMemory = {f"{i:03d}": "+000000" for i in range(250)}
 
             for i, line in enumerate(parsed_program):
@@ -524,7 +506,6 @@ Invalid instructions shown with red background
             self.write_system(f"Loaded file: {filepath}")
 
         except Exception as e:
-            # FINAL CATCH — guarantees no crashes reach Tkinter
             messagebox.showerror("Unexpected Error", f"An unexpected error occurred:\n{str(e)}")
             self.write_system(f"CRITICAL ERROR: {str(e)}")
             self.file_valid = False
@@ -591,21 +572,14 @@ Invalid instructions shown with red background
         except Exception:
             return False
 
-    # New code
     def close_tab(self):
         selected = self.notebook.select()
         if not selected:
             return
-
         tab_widget = self.notebook.nametowidget(selected)
-
-        # Remove from memory manager
         self.memory_manager.remove_mem_helper(tab_widget)
-
-        # Remove tab from the notebook
         self.notebook.forget(selected)
 
-    # End of new code
 
     def _copy_selection(self, event=None):
         """Copy selected rows to clipboard."""
@@ -1104,3 +1078,4 @@ Invalid instructions shown with red background
         except Exception as e:
             self.write_system(f"Fatal Error: {str(e)}")
             self.write_system("Program terminated")
+
