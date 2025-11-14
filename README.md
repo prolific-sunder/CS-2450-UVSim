@@ -6,8 +6,8 @@ Creation Date: 09/11/2025
 ## Description
 Collaborative project to create UVSim.
 UVSim is a virtual machine designed to interpret BasicML instructions. This implementation provides a graphical interface (GUI) for easier interaction.
--BasicML: Programs are written as signed four-digit decimal numbers (e.g., +1234, -0456).<br>
--Memory: UVSim supports 100 memory locations (00–99).<br>
+-BasicML: Programs are written as signed six-digit or four-digit decimal numbers (e.g., +1234, -0456). Each file can only contain 4 or 6 digit instructions, not mixed.<br>
+-Memory: UVSim supports 250 memory locations (00–249).<br>
 -CPU & Registers: Tracks the Accumulator and Program Counter in real time.<br>
 -GUI Features: Configure color scheme, load files, save files, run programs, reset memory, monitor execution, view memory/register state and edit memory/instructions directly in a Tkinter window.
 
@@ -26,7 +26,7 @@ pip install pytest
 
 ### GUI Functionality
 Within the GUI window, the user will have access to the following functionalities:
--Load File Button – Select a BasicML program file (.txt) to load into memory.<br>
+-Load File Button – Select a BasicML program file (.txt) to load into memory. Each load will open a new memory tab.<br>
 -Run Program Button – Execute the loaded program line by line.<br>
 -Reset Program Button – Restore memory, accumulator, and program counter to their initial state.<br>
 -Theme Settings Button – Allows user to configure primary and secondary color scheme, can also reset to UVU default<br>
@@ -36,7 +36,7 @@ Within the GUI window, the user will have access to the following functionalitie
 -System Messages – A scrolling log showing program status, errors, and input prompts.<br>
 -System Variables – Displays the current Accumulator and Program Counter.<br>
 -Program Instructions – Shows the currently executing instruction.<br>
--Memory Table - Displays all 100 memory locations (00–99) and their current values. Updates in real time. Allows editing based on click instructions.
+-Memory Table - Displays all 249 memory locations (00–249) and their current values. Updates in real time. Allows editing based on click instructions. The top will hold the different file tabs you can navigate to.
 
 ### Editing Memory 
 
@@ -49,12 +49,12 @@ Within the GUI window, the user will have access to the following functionalitie
 - Save your file by typing 'CTRL+S'.<br>
 
 ### File/Input Requirements
--When loading a file, program expects no more than 4 digits and one potential +/- sign. If more than 4 digits, invalid characters, or duplicate signs are added, an error will be thrown.<br>
-EXAMPLES: +1102 | -0009 | 4300 <br>
-ERRORS: abcde | 209123 | 0.0 <br>
--When giving User Input, program expects no more than 4 digits and one potential +/- sign. If more than 4 digits, program will treat it as overflow and use the last 4 digits in the integer. Invalid characters or duplicate signs will result in an error being thrown.<br>
-EXAMPLES: +1102 | -0009 | 4300 | 918234 (overflowed to 8234) <br>
-ERRORS: abc | ++2091 | 0.0 <br>
+-When loading a file, program expects no more than 6-digits OR 4-digits and one potential +/- sign. If more than 6 digits, invalid characters, or duplicate signs are added, an error will be thrown. Files cannot be mixed between 4-digits and 6-digits.<br>
+EXAMPLES: +111202 | -041009 | 4300 <br>
+ERRORS: abcde | 20912311 | 0.0 <br>
+-When giving User Input, program expects no more than 6-digits OR 4-digits and one potential +/- sign. If more than 4/6 digits, program will treat it as overflow and use the last 4/6 digits in the integer. Invalid characters or duplicate signs will result in an error being thrown.<br>
+EXAMPLES: +110002 | -000009 | 4300 | 9182312344 (overflowed to 312344) <br>
+ERRORS: abc | ++209112 | 0.0 <br>
 
 ## Changelog 
 09/11/2025 - Initial creation, added README.md basic format and blank main.py.<br>
@@ -62,3 +62,4 @@ ERRORS: abc | ++2091 | 0.0 <br>
 10/1/2025 - Implemented new GUI with tkinter and integrated it with main.py. Added overflow handling functions to main.py.<br>
 10/22/2025 - Implemented color theme for GUI and config.json file.<br>
 10/23/2025 - Implemented editing, invalid entry flags, warnings, and file saving of memory.<br>
+11/14/2025 - Implemented 250 memory, support for 6-digit words and 4-digit, and multiple tabs/files open at the same time.
