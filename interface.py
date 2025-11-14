@@ -17,6 +17,11 @@ class Window:
         self.root.configure(background=self.primary_color)
         self.root.geometry(size)
 
+        # NEW CODE
+        # Notebook
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.place(x=700, y=60, width=550, height=620)
+
         # Clipboard for cut/copy/paste (list of strings)
         self.clipboard = []
 
@@ -52,6 +57,21 @@ class Window:
         self.divider = tk.Canvas(self.root, width=3, height=900, bg=self.primary_color, bd=0, highlightthickness=0)
         self.divider.grid(row=0, column=2, rowspan=50, padx=10)
 
+        # --- NEW BUTTON TO CLOSE ACTIVE TAB --- new code
+
+        # Place above the notebook, to the right
+        self.close_tab_btn = tk.Button(
+            self.root,
+            text="Close Tab",
+            width=10,
+            height=1,
+            command=self.close_tab
+        )
+        self.close_tab_btn.place(x=1200, y=30)  # Adjust x/y as needed for spacing
+
+        if not self.notebook.tabs():
+            self.close_tab_btn.place_forget()
+
         # --- System Messages ---
         self.log_frame = tk.Frame(self.root, bg=self.primary_color, bd=0, highlightthickness=0)
         self.log_frame.place(x=200, y=25)
@@ -84,48 +104,6 @@ class Window:
         self.memory_label = tk.Label(self.root, text="Memory", bg=self.primary_color, font=("Helvetica", 18))
         self.memory_label.place(x=725, y=25)
 
-        frame = tk.Frame(self.root, bg="white")
-        frame.place(x=725, y=60, width=500, height=560)
-
-        scrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL, width=18)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # allow selection for editing/cut/copy/paste
-        self.memoryState = ttk.Treeview(frame, columns=("Location", "Item"), show="headings", yscrollcommand=scrollbar.set, selectmode="extended", height=35)
-        self.memoryState.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.memoryState.yview)
-
-        style = ttk.Style()
-        style.configure("Custom.Treeview", background="white", foreground="black", rowheight=18, font=("Courier New", 12))
-        style.map("Custom.Treeview", background=[("selected", "white")], foreground=[("selected", "black")])
-        self.memoryState.configure(style="Custom.Treeview")
-        self.memoryState.heading("Location", text="Location")
-        self.memoryState.heading("Item", text="Memory Item")
-        self.memoryState.column("Location", width=80, anchor="center", stretch=False)
-        self.memoryState.column("Item", width=400, anchor="w", stretch=False)
-
-        for i in range(250):
-            tag = "even" if i % 2 == 0 else "odd"
-            self.memoryState.insert("", "end", values=(f"{i:03d}", "+000000"), tags=(tag,))
-        self.memoryState.tag_configure("even", background="#f7f7f7")
-        self.memoryState.tag_configure("odd", background="#f0f0f0")
-        
-        # tag for invalid entries
-        self.memoryState.tag_configure("invalid", background="#ffdddd")
-                               
-        # allow double-click edit
-        self.memoryState.bind('<Double-1>', self.on_double_click)
-        # right-click context menu
-        self.memoryState.bind('<Button-3>', self.show_context_menu)
-
-        # context menu
-        self.context_menu = tk.Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Cut", command=self.cut_selection)
-        self.context_menu.add_command(label="Copy", command=self.copy_selection)
-        self.context_menu.add_command(label="Paste", command=self.paste_at_selection)
-        self.context_menu.add_separator()
-        self.context_menu.add_command(label="Delete", command=self.delete_instruction)
-
         self.initial_memory = {}
         self.run_thread = None
         self.file_valid = False
@@ -133,6 +111,16 @@ class Window:
 
         # wait for 'ctrl+s'
         self.root.bind('<Control-s>', self.save_file)
+
+        # Memory Manager initializer
+        self.memory_manager = core.MemoryManager(self)
+
+        # wait for tab switch
+        self.notebook.bind("<<NotebookTabChanged>>", self.memory_manager.switch_mem)
+
+        # Notebook Management
+        self.notebook.place(x=700, y=60, width=550, height=620)
+        self.close_tab_btn.place(x=1100, y=20)
 
         # Apply initial theme
         self.apply_theme()
@@ -358,6 +346,57 @@ Invalid instructions shown with red background
             filepath = filedialog.askopenfilename(title="Select a Program File", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
             if not filepath:
                 return None
+            
+            # Initialize new tab
+            self.new_frame = ttk.Frame(self.notebook, width=400, height=280)
+            #self.new_frame.place(x=725, y=60, width=500, height=560)
+            self.new_frame.grid(column=1, row=1)
+
+            scrollbar = tk.Scrollbar(self.new_frame, orient=tk.VERTICAL, width=18)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+            # allow selection for editing/cut/copy/paste
+            self.memoryState = ttk.Treeview(self.new_frame, columns=("Location", "Item"), show="headings", yscrollcommand=scrollbar.set, selectmode="extended", height=35)
+            self.memoryState.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            scrollbar.config(command=self.memoryState.yview)
+
+            style = ttk.Style()
+            style.configure("Custom.Treeview", background="white", foreground="black", rowheight=18, font=("Courier New", 12))
+            style.map("Custom.Treeview", background=[("selected", "white")], foreground=[("selected", "black")])
+            self.memoryState.configure(style="Custom.Treeview")
+            self.memoryState.heading("Location", text="Location")
+            self.memoryState.heading("Item", text="Memory Item")
+            self.memoryState.column("Location", width=80, anchor="center", stretch=False)
+            self.memoryState.column("Item", width=400, anchor="w", stretch=False)
+
+            for i in range(250):
+                tag = "even" if i % 2 == 0 else "odd"
+                self.memoryState.insert("", "end", values=(f"{i:03d}", "+000000"), tags=(tag,))
+            self.memoryState.tag_configure("even", background="#f7f7f7")
+            self.memoryState.tag_configure("odd", background="#f0f0f0")
+        
+            # tag for invalid entries
+            self.memoryState.tag_configure("invalid", background="#ffdddd")
+                               
+            # allow double-click edit
+            self.memoryState.bind('<Double-1>', self.on_double_click)
+            # right-click context menu
+            self.memoryState.bind('<Button-3>', self.show_context_menu)
+
+            # context menu
+            self.context_menu = tk.Menu(self.root, tearoff=0)
+            self.context_menu.add_command(label="Cut", command=self.cut_selection)
+            self.context_menu.add_command(label="Copy", command=self.copy_selection)
+            self.context_menu.add_command(label="Paste", command=self.paste_at_selection)
+            self.context_menu.add_separator()
+            self.context_menu.add_command(label="Delete", command=self.delete_instruction)
+
+            # Defining the new frame
+            new_title = filepath.split("/")
+            self.notebook.add(self.new_frame, text=new_title[-1])
+            self.notebook.place(x=700, y=60, width=550, height=620)
+            temp_windows = self.notebook.tabs()
+            self.notebook.select(temp_windows[-1])
 
             # Clear and initialize memory
             core._programMemory.clear()
@@ -403,15 +442,18 @@ Invalid instructions shown with red background
             # If 4-digit format detected, ask user if they want to convert
             convert_to_6_digit = False
             if detected_format == '4-digit':
+                convert_to_6_digit = True
+                # WHY DOES THIS BREAK EVERYTHING?
+                '''
                 convert_to_6_digit = messagebox.askyesno(
                     "4-Digit Format Detected",
                     "This file uses 4-digit instructions.\n\n"
                     "Would you like to convert to 6-digit format?\n\n"
                     "(6-digit format supports 250 memory locations)"
-                )
+                )'''
                 if convert_to_6_digit:
                     self.write_system("Converting 4-digit instructions to 6-digit format...")
-            
+
             # Second pass: load instructions into memory
             for i, line in enumerate(lines):
                 if memory_index >= 250:
@@ -446,6 +488,9 @@ Invalid instructions shown with red background
                     core._programMemory[f"{memory_index:03d}"] = line
                     errors.append(f"Line {i+1}: {str(e)}")
                     memory_index += 1
+
+            # Add _programMemory to the Memory Manager
+            self.memory_manager.add_mem_helper(core._programMemory)
 
             # Update display
             self.build_memory_table(core._programMemory, save_initial=True)
@@ -540,6 +585,22 @@ Invalid instructions shown with red background
             return True
         except Exception:
             return False
+        
+    # New code
+    def close_tab(self):
+        """Close the currently selected tab window."""
+        selected_tab = self.notebook.select()
+        if selected_tab:
+            self.memory_manager.remove_mem_helper()
+            self.notebook.forget(selected_tab)
+
+        # Hide button if no tabs remain
+
+        # For now, I'm removing this functionality as it doesn't come back if you add a new tab - Kaleb
+        """
+        if not self.notebook.tabs():
+            self.close_tab_btn.place_forget()"""
+    #End of new code
 
     def _copy_selection(self, event=None):
         """Copy selected rows to clipboard."""
@@ -696,7 +757,7 @@ Invalid instructions shown with red background
         core._accumulator = "+000000"
         core._programCounter = 0
         self.update_vars()
-        self.clear_system()
+        #self.clear_system()
 
     # --- Input handling ---
 
