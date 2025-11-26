@@ -2,7 +2,7 @@ import sys
 import re
 import interface as face
 
-_accumulator = "+0000"
+_accumulator = "+000000"
 _programCounter = 0
 _programMemory = {}
 
@@ -33,10 +33,10 @@ class MemoryManager:
 
 # --- Core instruction implementations ---
 def _overflow_value(value: int) -> str:
-    """Truncate to signed four-digit word (keep last 4 digits)."""
+    """Truncate to signed 6-digit word in 00XXXX format (keep last 4 digits)."""
     sign = '+' if value >= 0 else '-'
     digits = str(abs(value))[-4:]  # take last 4 digits only
-    return f"{sign}{digits.zfill(4)}"
+    return f"{sign}00{digits.zfill(4)}"
 
 def parse(word):
     """
@@ -139,37 +139,40 @@ def read(tuple, input):
     """Read input and store in memory at given address."""
     if input is None:
         raise ValueError("No input provided for READ instruction")
-
+    
     input = input.strip()  # Remove whitespace
 
     if not input:  # Check for empty string
         raise ValueError("Empty input for READ instruction")
-
+    
+    # Handle both 2-digit and 3-digit memory addresses
     address = tuple[1].zfill(3)  # Normalize to 3 digits for 250 memory locations
-
+    
     if address not in _programMemory:
         raise ValueError(f"Invalid memory address in READ: {tuple[1]}")
-
+    
     length = len(input)
 
+    # Store as 6-digit format: +00XXXX
     if input[0] == "+" or input[0] == "-":
-        if length > 5:
-            input = input[0] + input[length - 4:]
+        if length > 7:  # Overflow: take last 4 digits
+            input = input[0] + "00" + input[length - 4:]
             _programMemory[address] = input
-        elif length == 5:
+        elif length == 7:  # Already 6-digit
             _programMemory[address] = input
-        else:
-            input = input[0] + ("0" * (5 - length)) + input[1:]
+        else:  # Less than 6 digits, pad to 6
+            digits = input[1:]
+            input = input[0] + "00" + ("0" * (4 - len(digits))) + digits
             _programMemory[address] = input
-    else:
-        if length > 4:
-            input = "+" + input[length - 4:]
+    else:             
+        if length > 4:  # Overflow: take last 4 digits
+            input = "+00" + input[length - 4:]
             _programMemory[address] = input
         elif length == 4:
-            input = "+" + input
+            input = "+00" + input
             _programMemory[address] = input
         else:
-            input = "+" + ("0" * (4 - length)) + input
+            input = "+00" + ("0" * (4 - length)) + input
             _programMemory[address] = input
 
 
@@ -179,11 +182,11 @@ def write(tuple):
 
     # Normalize address to 3 digits
     address = address.zfill(3)
-
+    
     if address not in _programMemory:
         raise ValueError(f"Invalid memory address in WRITE: {tuple[1]}")
-
-    # Executes write instruction
+    
+    # Return the value from memory (already in 6-digit format)
     return _programMemory[address]
 
 
